@@ -29,3 +29,23 @@ pub struct FlushRequest {
 pub struct StartRequest {
     ob_id: u16
 }
+
+
+// --------------------------
+
+#[derive(Debug,Constructor,Clone,Copy)]
+pub struct AddResponse {
+    oid: usize
+}
+
+#[derive(Debug,Constructor,Clone,Copy)]
+pub struct ExecuteResponse {
+    executed_oid: usize,
+    qty: u64
+}
+
+#[derive(Debug,Constructor,Clone,Copy)]
+pub struct PriceLevelResponse {
+    price: i8,
+    volume: u64
+}
