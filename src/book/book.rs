@@ -227,7 +227,7 @@ impl Orderbook {
 
             while cur_idx != usize::MAX {
                 let order = order_arena.get(cur_idx);
-                println!("|---- {}", order.qty);
+                println!("|---- #{} @ {}", cur_idx, order.qty);
                 cur_idx = order.next;
             }
         }
@@ -245,7 +245,7 @@ impl Orderbook {
 
             while cur_idx != usize::MAX {
                 let order = order_arena.get(cur_idx);
-                println!("|---- {}", order.qty);
+                println!("|---- #{} @ {}", cur_idx, order.qty);
                 cur_idx = order.next;
             }
         }

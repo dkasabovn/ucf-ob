@@ -59,6 +59,8 @@ fn main() -> Result<()> {
                 listener.read_exact(&mut reduce_buffer)?;
                 let reduce_op = unsafe { u8_slice_to_struct::<ReduceRequest>(&reduce_buffer) };
                 println!("reducing {:?}", reduce_op);
+
+                manager[reduce_op.ob_id as usize].reduce(reduce_op.oid, reduce_op.qty);
             }
             'F' => {
                 let mut flush_buffer = [0u8; mem::size_of::<FlushRequest>()];
