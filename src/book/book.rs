@@ -4,6 +4,7 @@ use std::cmp;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+#[derive(Debug)]
 pub struct OrderChain {
     qty: u64,
     level_id: usize,
@@ -88,9 +89,9 @@ impl Orderbook {
         let mut insertion_idx: i32 = sorted_levels.len() as i32 - 1;
         let mut found = false;
 
-        for (i, level) in sorted_levels.iter().enumerate().rev() {
+        for level in sorted_levels.iter().rev() {
             if level.price == price {
-                order.level_id = i;
+                order.level_id = level.level_id;
                 found = true;
                 break;
             }
@@ -209,6 +210,44 @@ impl Orderbook {
             self.add(qty, book_id, price)
         } else {
             usize::MAX
+        }
+    }
+    pub fn print(self: &Self) {
+        let mut order_arena = self.order_arena.borrow_mut();
+        println!("YES");
+        for pl in self.sorted_yes.iter().rev() {
+            let level_id = pl.level_id;
+            let (qty, head) = {
+                let level = &self.level_arena[level_id];
+                (level.qty, level.head)
+            };
+            println!("| $0.{} @ {}", pl.price.abs(), qty);
+
+            let mut cur_idx = head;
+
+            while cur_idx != usize::MAX {
+                let order = order_arena.get(cur_idx);
+                println!("|---- {}", order.qty);
+                cur_idx = order.next;
+            }
+        }
+
+        println!("NO");
+        for pl in self.sorted_no.iter().rev() {
+            let level_id = pl.level_id;
+            let (qty, head) = {
+                let level = &self.level_arena[level_id];
+                (level.qty, level.head)
+            };
+            println!("| $0.{} @ {}", pl.price.abs(), qty);
+
+            let mut cur_idx = head;
+
+            while cur_idx != usize::MAX {
+                let order = order_arena.get(cur_idx);
+                println!("|---- {}", order.qty);
+                cur_idx = order.next;
+            }
         }
     }
 }

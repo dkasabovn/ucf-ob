@@ -32,7 +32,6 @@ fn main() -> Result<()> {
         let mut inputs: Vec<&str> = input.split_whitespace().collect();
         
         let cmd = inputs.remove(0);
-        debug_assert!(inputs.len() > 0);
 
         let mast = cmd.chars().next().unwrap();
 
@@ -109,6 +108,11 @@ fn main() -> Result<()> {
                 listener.write(&char_buf)?;
                 listener.write_all(&sloice)?;
                 println!("wrote {:?} to socket", req);
+            },
+            'P' => {
+                char_buf[0] = 'P' as u8;
+                listener.write(&char_buf)?;
+                println!("sent print request");
             },
             _ => {
                 listener.shutdown(std::net::Shutdown::Both)?;

@@ -2,32 +2,32 @@ use derive_more::Constructor;
 
 #[derive(Debug,Constructor,Clone,Copy)]
 pub struct AddRequest {
-    qty: u64,
-    price: i8,
-    ob_id: u16
+    pub qty: u64,
+    pub price: i8,
+    pub ob_id: u16
 }
 
 #[derive(Debug,Constructor,Clone,Copy)]
 pub struct CancelRequest {
-    oid: usize,
-    ob_id: u16
+    pub oid: usize,
+    pub ob_id: u16
 }
 
 #[derive(Debug,Constructor,Clone,Copy)]
 pub struct ReduceRequest {
-    oid: usize,
-    qty: u64,
-    ob_id: u16
+    pub oid: usize,
+    pub qty: u64,
+    pub ob_id: u16
 }
 
 #[derive(Debug,Constructor,Clone,Copy)]
 pub struct FlushRequest {
-    ob_id: u16
+    pub ob_id: u16
 }
 
 #[derive(Debug,Constructor,Clone,Copy)]
 pub struct StartRequest {
-    ob_id: u16
+    pub ob_id: u16
 }
 
 
@@ -35,17 +35,17 @@ pub struct StartRequest {
 
 #[derive(Debug,Constructor,Clone,Copy)]
 pub struct AddResponse {
-    oid: usize
+    pub oid: usize
 }
 
 #[derive(Debug,Constructor,Clone,Copy)]
 pub struct ExecuteResponse {
-    executed_oid: usize,
-    qty: u64
+    pub executed_oid: usize,
+    pub qty: u64
 }
 
 #[derive(Debug,Constructor,Clone,Copy)]
 pub struct PriceLevelResponse {
-    price: i8,
-    volume: u64
+    pub price: i8,
+    pub volume: u64
 }
