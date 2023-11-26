@@ -1,0 +1,62 @@
+pub struct ArenaLink<T> {
+    data: T,
+    next: *mut ArenaLink<T>
+}
+
+impl<T> ArenaLink<T> {
+    pub unsafe fn set_next(self: &mut Self, next: *mut ArenaLink<T>) {
+        self.next = next;
+    }
+    pub unsafe fn get_next(self: &mut Self) -> *mut ArenaLink<T> {
+        self.next
+    }
+    pub unsafe fn get_data(self: &mut Self) -> &mut T {
+        &mut self.data
+    }
+}
+
+pub trait MemLinkArena<T>: ops::Index<usize> {
+    unsafe fn get_ptr(self: &mut Self, idx: usize) -> *mut ArenaLink<T>;
+    fn with_capacity(capacity: usize) -> Self;
+    fn alloc(self: &mut Self) -> usize;
+    fn free(self: &mut Self, idx: usize);
+    fn set(self: &mut Self, idx: usize, data: T);
+}
+
+impl<T> MemLinkArena<T> for BasicArena<ArenaLink<T>> {
+    fn with_capacity(capacity: usize) -> Self {
+        BasicArena {
+            alloc: Vec::with_capacity(capacity),
+            free: Vec::new(),
+            size: 0,
+        }
+    }
+    fn alloc(self: &mut Self) -> usize {
+        self.size += 1;
+        if self.free.is_empty() {
+            let idx = self.alloc.len();
+            unsafe {
+                self.alloc.set_len(idx + 1);
+            }
+            return idx;
+        } else {
+            let idx = self.free.pop().unwrap();
+            return idx;
+        }
+    }
+    fn free(self: &mut Self, idx: usize) {
+        self.size -= 1;
+        self.free.push(idx);
+    }
+    fn set(self: &mut Self, idx: usize, data: T) {
+        self.alloc[idx].write(ArenaLink{
+            data: data,
+            next: std::ptr::null_mut(),
+        });
+    }
+    // Hyper unsafe function; make sure you know that that ptr exists!!!
+    unsafe fn get_ptr(self: &mut Self, idx: usize) -> *mut ArenaLink<T> {
+        let ptr = self.alloc.as_mut_ptr().add(idx);
+        ptr as *mut ArenaLink<T>
+    }
+}
