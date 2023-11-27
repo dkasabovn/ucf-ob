@@ -66,6 +66,10 @@ impl StreamHandler<Result<Message, ProtocolError>> for MyWs {
                                 ret.push_str("V:");
 
                                 for (i, &num) in arr.iter().enumerate() {
+                                    let mut price_level = i;
+                                    if i > 100 {
+                                        price_level -= 100;
+                                    }
                                     if num > 0 {
                                         write!(ret, "{}:{};", i, num).expect("failed to write str");
                                     }
