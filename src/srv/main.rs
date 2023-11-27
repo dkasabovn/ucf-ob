@@ -58,6 +58,7 @@ fn main() -> Result<()> {
                     buffer[0] = match response.typ {
                         MatchingType::ADD => 'A' as u8,
                         MatchingType::EXECUTE => 'X' as u8,
+                        _ => todo!()
                     };
                     listener.write(&buffer)?;
                     listener.write_all(&result_buffer)?;

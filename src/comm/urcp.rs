@@ -34,7 +34,10 @@ pub struct StartRequest {
 // --------------------------
 pub enum MatchingType {
     ADD,
-    EXECUTE
+    EXECUTE,
+    PRICE,
+    CANCEL,
+    REDUCE,
 }
 
 pub struct MatchingWrapper {
@@ -46,7 +49,10 @@ pub struct MatchingWrapper {
 #[derive(Clone,Copy)]
 pub union MatchingResponse {
     pub add: AddResponse,
-    pub execute: ExecuteResponse
+    pub execute: ExecuteResponse,
+    pub price: PriceLevelResponse,
+    pub cancel: CancelResponse,
+    pub reduce: ReduceResponse
 }
 
 #[derive(Debug,Constructor,Clone,Copy)]
@@ -61,7 +67,19 @@ pub struct ExecuteResponse {
 }
 
 #[derive(Debug,Constructor,Clone,Copy)]
+pub struct CancelResponse {
+    pub oid: usize,
+}
+
+#[derive(Debug,Constructor,Clone,Copy)]
+pub struct ReduceResponse {
+    pub oid: usize,
+    pub qty: usize
+}
+
+#[derive(Debug,Constructor,Clone,Copy)]
 pub struct PriceLevelResponse {
     pub price: i8,
     pub volume: u64
 }
+
