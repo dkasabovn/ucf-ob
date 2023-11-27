@@ -14,13 +14,6 @@ const BOOKS: u16 = 1;
 
 const STREAM_ADDR: &'static str = "/tmp/fish.socket";
 
-unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
-    ::core::slice::from_raw_parts(
-        (p as *const T) as *const u8,
-        ::core::mem::size_of::<T>(),
-    )
-}
-
 unsafe fn u8_slice_to_struct<T: Copy>(s: &[u8]) -> T {
     assert_eq!(s.len(), mem::size_of::<T>());
 

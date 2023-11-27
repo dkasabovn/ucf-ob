@@ -268,6 +268,9 @@ impl Orderbook {
         actions
     }
 
+    // returns a size 200 array with frequencies
+    // [0-100] stores yes
+    // [100-200] stores no
     pub fn get_level_view(self: &Self) -> [u64; 200] {
         let mut ret: [u64; 200] = [0; 200];
         for pl in &self.sorted_yes {
