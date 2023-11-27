@@ -274,23 +274,23 @@ impl Orderbook {
     pub fn get_level_view(self: &Self) -> [u64; 200] {
         let mut ret: [u64; 200] = [0; 200];
         for pl in &self.sorted_yes {
-            let level_id = pl.level_id;
+            let price = pl.price as usize;
             let (qty, _) = {
-                let level = &self.level_arena[level_id];
+                let level = &self.level_arena[pl.level_id];
                 (level.qty, level.head)
             };
 
-            ret[level_id] = qty;
+            ret[price + 100] = qty;
         }
 
         for pl in &self.sorted_no {
-            let level_id = pl.level_id;
+            let price = (pl.price.abs()) as usize;
             let (qty, _) = {
-                let level = &self.level_arena[level_id];
+                let level = &self.level_arena[pl.level_id];
                 (level.qty, level.head)
             };
 
-            ret[level_id + 100] = qty;
+            ret[price] = qty;
         }
 
         return ret;

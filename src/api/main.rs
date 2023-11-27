@@ -6,9 +6,10 @@ use actix_web::web::Data;
 use actix_web::{get, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_web_actors::ws;
 use actix_web_actors::ws::{Message, ProtocolError};
-use fast_book::comm::urcp::PriceViewResponse;
+use fast_book::comm::urcp::{AddRequest, OBReqType, OBRequest, PriceViewResponse, read_response_vec, write_request};
 use std::collections::BTreeMap;
 use std::fmt::Write;
+use std::ops::DerefMut;
 use std::os::unix::net::UnixStream;
 use std::sync::Mutex;
 
@@ -35,6 +36,9 @@ impl Actor for MyWs {
 }
 impl StreamHandler<Result<Message, ProtocolError>> for MyWs {
     fn handle(&mut self, item: Result<Message, ProtocolError>, ctx: &mut Self::Context) {
+        let mut stream = self.socket.lock().unwrap();
+        let mut inner = stream.deref_mut();
+
         match item {
             Ok(Message::Ping(msg)) => ctx.pong(&msg),
             Ok(Message::Text(msg)) => {
@@ -47,6 +51,19 @@ impl StreamHandler<Result<Message, ProtocolError>> for MyWs {
                 }
 
                 match msg[0] {
+                    "A" => {
+                        debug_assert!(msg.len() == 4);
+                        let qty = msg[1].parse::<u64>().unwrap();
+                        let price = msg[2].parse::<i8>().unwrap();
+                        let ob_id = msg[3].parse::<u16>().unwrap();
+                        let req = AddRequest::new(qty, price, ob_id);
+                        write_request(inner, &OBReqType::ADD, &OBRequest{ add: req }).unwrap();
+                        let response_vec = read_response_vec(&mut inner).unwrap();
+
+                        for response in response_vec.iter() {
+                            println!("{:?}", response);
+                        }
+                    },
                     "V" => {
                         let oid = msg[1].parse::<u16>();
                         if oid.is_err() {
@@ -55,7 +72,7 @@ impl StreamHandler<Result<Message, ProtocolError>> for MyWs {
 
                         let oid = oid.unwrap();
                         println!("oid: {}", oid);
-                        let data = get_book_data(self.socket.clone(), oid);
+                        let data = get_book_data(inner, oid);
                         match data {
                             Err(_) => {}
                             Ok(data) => {
@@ -66,12 +83,10 @@ impl StreamHandler<Result<Message, ProtocolError>> for MyWs {
                                 ret.push_str("V:");
 
                                 for (i, &num) in arr.iter().enumerate() {
-                                    let mut price_level = i;
-                                    if i > 100 {
-                                        price_level -= 100;
-                                    }
+                                    let price_level = (i as i16) - 100;
+
                                     if num > 0 {
-                                        write!(ret, "{}:{};", i, num).expect("failed to write str");
+                                        write!(ret, "{}:{};", price_level, num).expect("failed to write str");
                                     }
                                 }
 

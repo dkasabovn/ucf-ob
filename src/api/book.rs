@@ -1,6 +1,8 @@
 // returns prices separated by commas
 
+use actix_web::error::ErrorBadRequest;
 use actix_web::web::Data;
+use actix_web::Error;
 use fast_book::comm::urcp::{
     read_response, read_response_vec, write_request, LevelViewRequest, OBReqType, OBRequest,
     OBRespType, PriceViewResponse,
@@ -8,22 +10,17 @@ use fast_book::comm::urcp::{
 use std::ops::{Deref, DerefMut};
 use std::os::unix::net::UnixStream;
 use std::sync::Mutex;
-use actix_web::Error;
-use actix_web::error::ErrorBadRequest;
 
-pub fn get_book_data(stream: Data<Mutex<UnixStream>>, oid: u16) -> Result<PriceViewResponse, Error> {
-    let mut stream = stream.lock().unwrap();
-    let mut inner = stream.deref_mut();
-
+pub fn get_book_data(stream: &mut UnixStream, oid: u16) -> Result<PriceViewResponse, Error> {
     write_request(
-        &mut inner,
+        stream,
         &OBReqType::LEVELVIEW,
         &OBRequest {
             level_view: LevelViewRequest { ob_id: oid },
         },
     )?;
 
-    let response = read_response(&mut inner)?;
+    let response = read_response(stream)?;
 
     match response.typ {
         OBRespType::LEVELVIEW => unsafe {
