@@ -1,5 +1,6 @@
 use derive_more::Constructor;
 
+
 #[derive(Debug,Constructor,Clone,Copy)]
 pub struct AddRequest {
     pub qty: u64,
@@ -32,12 +33,19 @@ pub struct StartRequest {
 
 
 // --------------------------
+#[derive(Clone,Copy)]
 pub enum MatchingType {
-    ADD,
-    EXECUTE,
-    PRICE,
-    CANCEL,
-    REDUCE,
+    ADD = 'A' as isize,
+    EXECUTE = 'X' as isize,
+    PRICE = '$' as isize,
+    CANCEL = 'C' as isize,
+    REDUCE = 'R' as isize,
+}
+
+impl MatchingType {
+    pub fn to_u8(&self) -> u8 {
+        *self as u8
+    }
 }
 
 pub struct MatchingWrapper {

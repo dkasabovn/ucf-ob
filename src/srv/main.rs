@@ -55,11 +55,7 @@ fn main() -> Result<()> {
 
                 for response in resulting.iter() {
                     let result_buffer = unsafe { any_as_u8_slice(&response.resp) };
-                    buffer[0] = match response.typ {
-                        MatchingType::ADD => 'A' as u8,
-                        MatchingType::EXECUTE => 'X' as u8,
-                        _ => todo!()
-                    };
+                    buffer[0] = response.typ.to_u8();
                     listener.write(&buffer)?;
                     listener.write_all(&result_buffer)?;
                 }
