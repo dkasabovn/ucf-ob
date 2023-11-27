@@ -54,7 +54,7 @@ impl std::fmt::Debug for OBRequestWrapper {
             OBReqType::REDUCE => unsafe { self.req.reduce.fmt(f) },
             OBReqType::FLUSH => unsafe { self.req.flush.fmt(f) },
             OBReqType::START => unsafe { self.req.start.fmt(f) },
-            OBReqType::LEVELVIEW => unsafe { self.req.start.fmt(f) },
+            OBReqType::LEVELVIEW => unsafe { self.req.level_view.fmt(f) },
             _ => f.write_str("unreachable"),
         }
     }

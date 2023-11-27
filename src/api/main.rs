@@ -7,6 +7,7 @@ use actix_web::{get, post, web, App, Error, HttpRequest, HttpResponse, HttpServe
 use actix_web_actors::ws;
 use actix_web_actors::ws::{Message, ProtocolError};
 use fast_book::comm::urcp::PriceViewResponse;
+use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::os::unix::net::UnixStream;
 use std::sync::Mutex;
@@ -32,7 +33,6 @@ struct MyWs {
 impl Actor for MyWs {
     type Context = ws::WebsocketContext<Self>;
 }
-
 impl StreamHandler<Result<Message, ProtocolError>> for MyWs {
     fn handle(&mut self, item: Result<Message, ProtocolError>, ctx: &mut Self::Context) {
         match item {
@@ -54,19 +54,25 @@ impl StreamHandler<Result<Message, ProtocolError>> for MyWs {
                         }
 
                         let oid = oid.unwrap();
+                        println!("oid: {}", oid);
                         let data = get_book_data(self.socket.clone(), oid);
                         match data {
-                            None => {}
-                            Some(data) => {
+                            Err(_) => {}
+                            Ok(data) => {
+                                println!("found some data\n");
                                 let arr = data.prices;
                                 // apriori allocation
                                 let mut ret = String::with_capacity(arr.len() * (21) - 1);
+                                ret.push_str("V:");
 
                                 for (i, &num) in arr.iter().enumerate() {
-                                    if i > 0 {
-                                        ret.push(',');
+                                    let mut price_level = i;
+                                    if i > 100 {
+                                        price_level -= 100;
                                     }
-                                    write!(ret, "{}", num).expect("failed to write str");
+                                    if num > 0 {
+                                        write!(ret, "{}:{};", i, num).expect("failed to write str");
+                                    }
                                 }
 
                                 ctx.text(ret);
