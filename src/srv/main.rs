@@ -53,14 +53,7 @@ fn main() -> Result<()> {
 
                 let resulting = manager[add_op.ob_id as usize].match_order(add_op.qty, add_op.ob_id, add_op.price);
 
-                for response in resulting.iter() {
-                    let result_buffer = unsafe { any_as_u8_slice(&response.resp) };
-                    buffer[0] = response.typ.to_u8();
-                    listener.write(&buffer)?;
-                    listener.write_all(&result_buffer)?;
-                }
-                buffer[0] = '#' as u8;
-                listener.write(&buffer)?;
+                write_response_vec(&mut listener, resulting)?;
             }
             'C' => {
                 let mut cancel_buffer = [0u8; mem::size_of::<CancelRequest>()];
@@ -68,7 +61,8 @@ fn main() -> Result<()> {
                 let cancel_op = unsafe { u8_slice_to_struct::<CancelRequest>(&cancel_buffer) };
                 println!("cancelling {:?}", cancel_op);
 
-                manager[cancel_op.ob_id as usize].delete(cancel_op.oid);
+                let price_delta = manager[cancel_op.ob_id as usize].delete(cancel_op.oid);
+                write_response(&mut listener, &MatchingType::PRICE, &MatchingResponse { price: PriceLevelResponse::from_pair(price_delta) })?; 
             }
             'R' => {
                 let mut reduce_buffer = [0u8; mem::size_of::<ReduceRequest>()];
@@ -76,7 +70,8 @@ fn main() -> Result<()> {
                 let reduce_op = unsafe { u8_slice_to_struct::<ReduceRequest>(&reduce_buffer) };
                 println!("reducing {:?}", reduce_op);
 
-                manager[reduce_op.ob_id as usize].reduce(reduce_op.oid, reduce_op.qty);
+                let price_delta = manager[reduce_op.ob_id as usize].reduce(reduce_op.oid, reduce_op.qty);
+                write_response(&mut listener, &MatchingType::PRICE, &MatchingResponse { price: PriceLevelResponse::from_pair(price_delta) })?;
             }
             'F' => {
                 let mut flush_buffer = [0u8; mem::size_of::<FlushRequest>()];

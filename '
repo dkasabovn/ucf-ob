@@ -240,7 +240,7 @@ impl Orderbook {
             });
             actions.push(MatchingWrapper{
                 resp: MatchingResponse {
-                    price: PriceLevelResponse::new(price, qty as i64),
+                    price: PriceLevelResponse::new(price, qty),
                 },
                 typ: MatchingType::PRICE
             });

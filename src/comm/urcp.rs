@@ -1,5 +1,61 @@
+use std::os::unix::net::UnixStream;
+use std::io::prelude::*;
+use std::io::Result;
 use derive_more::Constructor;
+use std::mem;
 
+unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
+    ::core::slice::from_raw_parts(
+        (p as *const T) as *const u8,
+        ::core::mem::size_of::<T>(),
+    )
+}
+
+unsafe fn u8_slice_to_struct<T: Copy>(s: &[u8]) -> T {
+    assert_eq!(s.len(), mem::size_of::<T>());
+
+    // Create an unaligned reference to the slice and read it as a T
+    let ptr = s.as_ptr() as *const T;
+    ptr.read_unaligned()
+}
+
+// -------
+
+#[derive(Clone,Copy)]
+#[repr(u8)]
+pub enum OBReqType {
+    ADD = b'A',
+    CANCEL = b'C',
+    REDUCE = b'R',
+    FLUSH = b'F',
+    START = b'S',
+}
+
+impl OBReqType {
+    pub fn to_u8(&self) -> u8 {
+        *self as u8
+    }
+    pub fn from_u8(v: u8) -> Self {
+        unsafe {
+            mem::transmute(v)
+        }
+    }
+}
+
+pub struct OBRequestWrapper {
+    pub req: OBRequest,
+    pub typ: OBReqType
+}
+
+#[derive(Copy,Clone)]
+#[repr(C)]
+pub union OBRequest {
+    pub add: AddRequest,
+    pub cancel: CancelRequest,
+    pub reduce: ReduceRequest,
+    pub flush: FlushRequest,
+    pub start: StartRequest,
+}
 
 #[derive(Debug,Constructor,Clone,Copy)]
 pub struct AddRequest {
@@ -31,36 +87,59 @@ pub struct StartRequest {
     pub ob_id: u16
 }
 
+pub fn write_request(stream: &mut UnixStream, typ: &OBReqType, req: &OBRequest) -> Result<()> {
+    stream.write(&[typ.to_u8()])?;
+    stream.write_all(unsafe { any_as_u8_slice::<OBRequest>(req) })?;
+    Ok(())
+}
+
+pub fn read_request(stream: &mut UnixStream) -> Result<OBRequestWrapper> {
+    let mut char_buf = [0u8; 1];
+    stream.read_exact(&mut char_buf)?;
+    let mut union_buf = [0u8; mem::size_of::<OBRequest>()];
+    stream.read_exact(&mut union_buf)?;
+
+    let union = unsafe { u8_slice_to_struct::<OBRequest>(&union_buf) };
+
+    Ok(OBRequestWrapper{
+        typ: OBReqType::from_u8(char_buf[0]),
+        req: union
+    })
+}
+
 
 // --------------------------
 #[derive(Clone,Copy)]
-pub enum MatchingType {
-    ADD = 'A' as isize,
-    EXECUTE = 'X' as isize,
-    PRICE = '$' as isize,
-    CANCEL = 'C' as isize,
-    REDUCE = 'R' as isize,
+#[repr(u8)]
+pub enum OBRespType {
+    ADD = b'A',
+    EXECUTE = b'X',
+    PRICE = b'$',
+    DELIM = b'#'
 }
 
-impl MatchingType {
+impl OBRespType {
     pub fn to_u8(&self) -> u8 {
         *self as u8
     }
+    pub fn from_u8(v: u8) -> Self {
+        unsafe {
+            std::mem::transmute(v)
+        }
+    }
 }
 
-pub struct MatchingWrapper {
-    pub resp: MatchingResponse,
-    pub typ: MatchingType
+pub struct OBResponseWrapper {
+    pub resp: OBResponse,
+    pub typ: OBRespType
 }
 
-#[repr(C)]
 #[derive(Clone,Copy)]
-pub union MatchingResponse {
+#[repr(C)]
+pub union OBResponse {
     pub add: AddResponse,
     pub execute: ExecuteResponse,
     pub price: PriceLevelResponse,
-    pub cancel: CancelResponse,
-    pub reduce: ReduceResponse
 }
 
 #[derive(Debug,Constructor,Clone,Copy)]
@@ -75,19 +154,46 @@ pub struct ExecuteResponse {
 }
 
 #[derive(Debug,Constructor,Clone,Copy)]
-pub struct CancelResponse {
-    pub oid: usize,
-}
-
-#[derive(Debug,Constructor,Clone,Copy)]
-pub struct ReduceResponse {
-    pub oid: usize,
-    pub qty: usize
-}
-
-#[derive(Debug,Constructor,Clone,Copy)]
 pub struct PriceLevelResponse {
     pub price: i8,
-    pub volume: u64
+    pub delta: i64
 }
 
+impl PriceLevelResponse {
+    pub fn from_pair(pair: (i8, i64)) -> Self {
+        PriceLevelResponse {
+            price: pair.0,
+            delta: pair.1
+        }
+    }
+}
+
+pub fn write_response_vec(stream: &mut UnixStream, resps: Vec<OBResponseWrapper>) -> Result<()> {
+    for resp in resps.iter() {
+        write_response(stream, &resp.typ, &resp.resp)?;
+    }
+
+    stream.write(&[b'#'])?;
+    Ok(())
+}
+
+pub fn write_response(stream: &mut UnixStream, typ: &OBRespType, data: &OBResponse) -> Result<()> {
+    let u8_slice = unsafe { any_as_u8_slice(&data) };
+    stream.write(&[typ.to_u8()])?;
+    stream.write_all(&u8_slice)?;
+    Ok(())
+}
+
+pub fn read_response(stream: &mut UnixStream) -> Result<OBResponseWrapper> {
+    let mut char_buf = [0u8; 1];
+    stream.read_exact(&mut char_buf)?;
+    let mut union_buf = [0u8; mem::size_of::<OBResponse>()];
+    stream.read_exact(&mut union_buf)?;
+
+    let union = unsafe { u8_slice_to_struct::<OBResponse>(&union_buf) };
+
+    Ok(OBResponseWrapper{
+        typ: OBRespType::from_u8(char_buf[0]),
+        resp: union
+    })
+}

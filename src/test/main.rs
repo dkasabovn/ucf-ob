@@ -52,7 +52,6 @@ fn main() -> Result<()> {
                 listener.write(&char_buf)?;
                 listener.write_all(&sloice)?;
 
-                // TODO: read here
             },
             'C' => {
                 char_buf[0] = 'C' as u8;
