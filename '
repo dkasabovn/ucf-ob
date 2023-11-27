@@ -32,19 +32,21 @@ pub struct StartRequest {
 
 
 // --------------------------
-pub enum MatchingType {
-    ADD,
-    EXECUTE
+pub enum MRT {
+    EXECUTE,
+    ADD
 }
 
-pub struct MatchingWrapper {
-    pub resp: MatchingResponse,
-    pub typ: MatchingType
+#[repr(C)]
+#[derive(Clone)]
+pub struct MatchingResponse {
+    pub u: MatchingUnion,
+    pub typ: MRT
 }
 
 #[repr(C)]
 #[derive(Clone,Copy)]
-pub union MatchingResponse {
+pub union MatchingUnion {
     pub add: AddResponse,
     pub execute: ExecuteResponse
 }

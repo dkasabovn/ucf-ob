@@ -14,6 +14,13 @@ const BOOKS: u16 = 1;
 
 const STREAM_ADDR: &'static str = "/tmp/fish.socket";
 
+unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
+    ::core::slice::from_raw_parts(
+        (p as *const T) as *const u8,
+        ::core::mem::size_of::<T>(),
+    )
+}
+
 unsafe fn u8_slice_to_struct<T: Copy>(s: &[u8]) -> T {
     assert_eq!(s.len(), mem::size_of::<T>());
 
@@ -44,7 +51,19 @@ fn main() -> Result<()> {
                 let add_op = unsafe { u8_slice_to_struct::<AddRequest>(&add_buffer) };
                 println!("adding {:?}", add_op);
 
-                manager[add_op.ob_id as usize].add(add_op.qty, add_op.ob_id, add_op.price);
+                let resulting = manager[add_op.ob_id as usize].match_order(add_op.qty, add_op.ob_id, add_op.price);
+
+                for response in resulting.iter() {
+                    let result_buffer = unsafe { any_as_u8_slice(&response.resp) };
+                    buffer[0] = match response.typ {
+                        MatchingType::ADD => 'A' as u8,
+                        MatchingType::EXECUTE => 'X' as u8,
+                    };
+                    listener.write(&buffer)?;
+                    listener.write_all(&result_buffer)?;
+                }
+                buffer[0] = '#' as u8;
+                listener.write(&buffer)?;
             }
             'C' => {
                 let mut cancel_buffer = [0u8; mem::size_of::<CancelRequest>()];

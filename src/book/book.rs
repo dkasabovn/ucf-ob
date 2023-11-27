@@ -1,5 +1,6 @@
 use crate::book::pool::{BasicArena, MemArena};
 use crate::book::bump::BumpAllocator;
+use crate::comm::urcp::*;
 use std::cmp;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -181,7 +182,7 @@ impl Orderbook {
         self.add_to_order_chain(order_id);
         order_id
     }
-    fn best_order(self: &Self, price: i8) -> Option<&Level> {
+    fn best_order(self: &Self, price: i8) -> Option<(usize,i8)> {
         // get the best level for a particular price
         // doesn't guarantee a match just checks price sign for getting the order
 
@@ -191,26 +192,44 @@ impl Orderbook {
         match price_level {
             None => None,
             Some(price_level) => {
-                Some(&self.level_arena[price_level.level_id])
+                Some({
+                    let level = &self.level_arena[price_level.level_id];
+                    (level.head, level.price)
+                })
             }
         }
     }
-    pub fn match_order(self: &mut Self, mut qty: u64, book_id: u16, price: i8) -> usize {
-        while let Some(level) = self.best_order(price) {
-            if level.price < price { // TODO: fix this line and we're gtg i think
-                let transaction_qty = cmp::min(qty, level.qty);
-                self.reduce_order(level.head, transaction_qty);
+    pub fn match_order(self: &mut Self, mut qty: u64, book_id: u16, price: i8) -> Vec<MatchingWrapper> {
+        let mut actions: Vec<MatchingWrapper> = Vec::new();
+
+        while let Some((lh, lp)) = self.best_order(price) {
+            let head_qty = self.order_arena.borrow_mut().get(lh).qty;
+            if lp.abs() < price.abs() { // TODO: fix this line and we're gtg i think
+                let transaction_qty = cmp::min(qty, head_qty);
+                self.reduce_order(lh, transaction_qty);
                 qty -= transaction_qty;
 
-                // TODO: report execution
+                actions.push(MatchingWrapper{
+                    resp: MatchingResponse {
+                        execute: ExecuteResponse::new(lh, transaction_qty)
+                    }, 
+                    typ: MatchingType::EXECUTE,
+                });
+
             }
         }
 
         if qty > 0 {
-            self.add(qty, book_id, price)
-        } else {
-            usize::MAX
+            let oid = self.add(qty, book_id, price);
+            actions.push(MatchingWrapper{
+                resp: MatchingResponse {
+                    add: AddResponse::new(oid)
+                },
+                typ: MatchingType::ADD
+            });
         }
+
+        actions
     }
     pub fn print(self: &Self) {
         let mut order_arena = self.order_arena.borrow_mut();
