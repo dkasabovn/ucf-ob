@@ -9,17 +9,6 @@ use std::mem;
 
 const STREAM_ADDR: &'static str = "/tmp/fish.socket";
 
-unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
-    ::core::slice::from_raw_parts(
-        (p as *const T) as *const u8,
-        ::core::mem::size_of::<T>(),
-    )
-}
-
-unsafe fn u8_slice_as_any<T: Sized>(s: &[u8]) -> &T {
-    debug_assert_eq!(s.len(), mem::size_of::<T>());
-    &*(s.as_ptr() as *const T)
-}
 
 fn main() -> Result<()> {
     let mut listener = UnixStream::connect(STREAM_ADDR)?;
@@ -35,83 +24,55 @@ fn main() -> Result<()> {
 
         let mast = cmd.chars().next().unwrap();
 
-        let mut char_buf = [0u8; 1];
 
         match mast {
             'A' => {
-                char_buf[0] = 'A' as u8;
-
                 debug_assert!(inputs.len() == 3);
                 let qty = inputs[0].parse::<u64>().unwrap();
                 let price = inputs[1].parse::<i8>().unwrap();
                 let ob_id = inputs[2].parse::<u16>().unwrap();
                 let req = AddRequest::new(qty, price, ob_id);
-                let sloice = unsafe { any_as_u8_slice::<AddRequest>(&req) };
+                write_request(&mut listener, &OBReqType::ADD, &OBRequest{ add: req })?;
+                let response_vec = read_response_vec(&mut listener)?;
 
-
-                listener.write(&char_buf)?;
-                listener.write_all(&sloice)?;
-
+                for response in response_vec.iter() {
+                    println!("{:?}", response);
+                }
             },
             'C' => {
-                char_buf[0] = 'C' as u8;
-
                 debug_assert!(inputs.len() == 2);
                 let oid = inputs[0].parse::<usize>().unwrap();
                 let ob_id = inputs[1].parse::<u16>().unwrap();
                 let req = CancelRequest::new(oid, ob_id);
-                let sloice = unsafe { any_as_u8_slice::<CancelRequest>(&req) };
-
-
-                listener.write(&char_buf)?;
-                listener.write_all(&sloice)?;
-                println!("wrote {:?} to socket", req);
+                write_request(&mut listener, &OBReqType::CANCEL, &OBRequest{ cancel: req })?;
+                let response = read_response(&mut listener)?;
+                println!("{:?}", response);
             },
             'R' => {
-                char_buf[0] = 'R' as u8;
-
                 debug_assert!(inputs.len() == 3);
                 let oid = inputs[0].parse::<usize>().unwrap();
                 let qty = inputs[1].parse::<u64>().unwrap();
                 let ob_id = inputs[2].parse::<u16>().unwrap();
                 let req = ReduceRequest::new(oid, qty, ob_id);
-                let sloice = unsafe { any_as_u8_slice::<ReduceRequest>(&req) };
-
-
-                listener.write(&char_buf)?;
-                listener.write_all(&sloice)?;
-                println!("wrote {:?} to socket", req);
+                write_request(&mut listener, &OBReqType::REDUCE, &OBRequest{ reduce: req })?;
+                let response = read_response(&mut listener)?;
+                println!("{:?}", response);
             },
             'F' => {
-                char_buf[0] = 'F' as u8;
-
                 debug_assert!(inputs.len() == 1);
                 let ob_id = inputs[0].parse::<u16>().unwrap();
                 let req = FlushRequest::new(ob_id);
-                let sloice = unsafe { any_as_u8_slice::<FlushRequest>(&req) };
-
-
-                listener.write(&char_buf)?;
-                listener.write_all(&sloice)?;
-                println!("wrote {:?} to socket", req);
+                write_request(&mut listener, &OBReqType::FLUSH, &OBRequest{ flush: req })?;
+                let response = read_response(&mut listener)?;
+                println!("{:?}", response);
             },
             'S' => {
-                char_buf[0] = 'S' as u8;
-
                 debug_assert!(inputs.len() == 1);
                 let ob_id = inputs[0].parse::<u16>().unwrap();
-                let req = FlushRequest::new(ob_id);
-                let sloice = unsafe { any_as_u8_slice::<FlushRequest>(&req) };
-
-
-                listener.write(&char_buf)?;
-                listener.write_all(&sloice)?;
-                println!("wrote {:?} to socket", req);
-            },
-            'P' => {
-                char_buf[0] = 'P' as u8;
-                listener.write(&char_buf)?;
-                println!("sent print request");
+                let req = StartRequest::new(ob_id);
+                write_request(&mut listener, &OBReqType::START, &OBRequest{ start: req })?;
+                let response = read_response(&mut listener)?;
+                println!("{:?}", response);
             },
             _ => {
                 listener.shutdown(std::net::Shutdown::Both)?;

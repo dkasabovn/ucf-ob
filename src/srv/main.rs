@@ -39,61 +39,36 @@ fn main() -> Result<()> {
     let mut listener = server.accept().unwrap().0;
 
     listener.set_read_timeout(None)?;
+    listener.set_write_timeout(None)?;
+    listener.set_nonblocking(false)?;
 
-    let mut buffer = [0u8; 1];
     loop {
-        listener.read_exact(&mut buffer)?;
-
-        match char::from(buffer[0]) {
-            'A' => {
-                let mut add_buffer = [0u8; mem::size_of::<AddRequest>()];
-                listener.read_exact(&mut add_buffer)?;
-                let add_op = unsafe { u8_slice_to_struct::<AddRequest>(&add_buffer) };
-                println!("adding {:?}", add_op);
-
-                let resulting = manager[add_op.ob_id as usize].match_order(add_op.qty, add_op.ob_id, add_op.price);
-
-                write_response_vec(&mut listener, resulting)?;
-            }
-            'C' => {
-                let mut cancel_buffer = [0u8; mem::size_of::<CancelRequest>()];
-                listener.read_exact(&mut cancel_buffer)?;
-                let cancel_op = unsafe { u8_slice_to_struct::<CancelRequest>(&cancel_buffer) };
-                println!("cancelling {:?}", cancel_op);
-
-                let price_delta = manager[cancel_op.ob_id as usize].delete(cancel_op.oid);
-                write_response(&mut listener, &MatchingType::PRICE, &MatchingResponse { price: PriceLevelResponse::from_pair(price_delta) })?; 
-            }
-            'R' => {
-                let mut reduce_buffer = [0u8; mem::size_of::<ReduceRequest>()];
-                listener.read_exact(&mut reduce_buffer)?;
-                let reduce_op = unsafe { u8_slice_to_struct::<ReduceRequest>(&reduce_buffer) };
-                println!("reducing {:?}", reduce_op);
-
-                let price_delta = manager[reduce_op.ob_id as usize].reduce(reduce_op.oid, reduce_op.qty);
-                write_response(&mut listener, &MatchingType::PRICE, &MatchingResponse { price: PriceLevelResponse::from_pair(price_delta) })?;
-            }
-            'F' => {
-                let mut flush_buffer = [0u8; mem::size_of::<FlushRequest>()];
-                listener.read_exact(&mut flush_buffer)?;
-                let flush_op = unsafe { u8_slice_to_struct::<FlushRequest>(&flush_buffer) };
-                println!("stop trading and flush orderbook {:?}", flush_op);
-            }
-            'S' => {
-                let mut start_buffer = [0u8; mem::size_of::<StartRequest>()];
-                listener.read_exact(&mut start_buffer)?;
-                let start_op = unsafe { u8_slice_to_struct::<StartRequest>(&start_buffer) };
-                println!("start orderbook {:?}", start_op);
-            },
-            'P' => {
-                manager[0].print();
-            },
-            '\0' => {
-                break;
-            }
-            _ => todo!(),
-        }
+        let request = read_request(&mut listener)?;
+        println!("{:?}", request);
+        unsafe {
+            match request {
+                OBRequestWrapper { req: OBRequest { add: req }, typ: OBReqType::ADD } => {
+                    let response_vec = manager[req.ob_id as usize].match_order(req.qty, req.price);
+                    write_response_vec(&mut listener, response_vec)?;
+                },
+                OBRequestWrapper { req: OBRequest { cancel: req }, typ: OBReqType::CANCEL } => {
+                    let price_level_response = manager[req.ob_id as usize].delete(req.oid);
+                    write_response(&mut listener, &OBRespType::PRICE, &OBResponse { price: price_level_response })?;
+                },
+                OBRequestWrapper { req: OBRequest { reduce: req }, typ: OBReqType::REDUCE } => {
+                    let price_level_response = manager[req.ob_id as usize].reduce(req.oid, req.qty);
+                    write_response(&mut listener, &OBRespType::PRICE, &OBResponse { price: price_level_response })?;
+                },
+                OBRequestWrapper { req: OBRequest { flush: _req }, typ: OBReqType::FLUSH } => {
+                    write_response(&mut listener, &OBRespType::DELIM, &OBResponse { end: DelimResponse{}})?;
+                },
+                OBRequestWrapper { req: OBRequest { start: _req }, typ: OBReqType::START } => {
+                    write_response(&mut listener, &OBRespType::DELIM, &OBResponse { end: DelimResponse{}})?;
+                },
+                _ => break
+            };
+        };
     }
 
-    Ok(())
+    unreachable!("malformatted request");
 }

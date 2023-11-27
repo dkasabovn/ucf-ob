@@ -9,17 +9,15 @@ use std::rc::Rc;
 pub struct OrderChain {
     qty: u64,
     level_id: usize,
-    book_id: u16,
     next: usize, // this pointer should be in the bump arena 
     prev: usize
 }
 
 impl OrderChain {
-    fn new(qty: u64, book_id: u16) -> Self {
+    fn new(qty: u64) -> Self {
         OrderChain {
             qty: qty,
             level_id: usize::MAX,
-            book_id: book_id,
             next: usize::MAX,
             prev: usize::MAX
         }
@@ -138,7 +136,7 @@ impl Orderbook {
             level.tail = order_id;
         }
     }
-    fn reduce_order(self: &mut Self, order_id: usize, qty: u64) -> (i8, i64) {
+    fn reduce_order(self: &mut Self, order_id: usize, qty: u64) -> PriceLevelResponse {
         let mut order_arena = self.order_arena.borrow_mut();
         let order = order_arena.get(order_id);
         debug_assert!(order.qty >= qty);
@@ -146,7 +144,10 @@ impl Orderbook {
         level.qty -= qty;
         order.qty -= qty;
 
-        let ret = (level.price, -(qty as i64));
+        let ret = PriceLevelResponse {
+            price: level.price,
+            delta: -(qty as i64),
+        };
 
         if level.qty == 0 {
             let sorted_levels = if level.price < 0 { &mut self.sorted_yes } else { &mut self.sorted_no };
@@ -175,15 +176,15 @@ impl Orderbook {
 
         ret
     }
-    pub fn delete(self: &mut Self, order_id: usize) -> (i8, i64) {
+    pub fn delete(self: &mut Self, order_id: usize) -> PriceLevelResponse {
         let order_qty = self.order_arena.borrow_mut().get(order_id).qty;
         self.reduce_order(order_id, order_qty)
     }
-    pub fn reduce(self: &mut Self, order_id: usize, qty: u64) -> (i8, i64) {
+    pub fn reduce(self: &mut Self, order_id: usize, qty: u64) -> PriceLevelResponse {
         self.reduce_order(order_id, qty)
     }
-    pub fn add(self: &mut Self, qty: u64, book_id: u16, price: i8) -> usize {
-        let order_id = self.order_arena.borrow_mut().write(OrderChain::new(qty, book_id));
+    pub fn add(self: &mut Self, qty: u64, price: i8) -> usize {
+        let order_id = self.order_arena.borrow_mut().write(OrderChain::new(qty));
         self.insert_order(order_id, price);
         self.add_to_order_chain(order_id);
         order_id
@@ -205,8 +206,8 @@ impl Orderbook {
             }
         }
     }
-    pub fn match_order(self: &mut Self, mut qty: u64, book_id: u16, price: i8) -> Vec<MatchingWrapper> {
-        let mut actions: Vec<MatchingWrapper> = Vec::new();
+    pub fn match_order(self: &mut Self, mut qty: u64, price: i8) -> Vec<OBResponseWrapper> {
+        let mut actions: Vec<OBResponseWrapper> = Vec::new();
 
         while let Some((lh, lp)) = self.best_order(price) {
             let head_qty = self.order_arena.borrow_mut().get(lh).qty;
@@ -215,34 +216,34 @@ impl Orderbook {
                 let price_delta = self.reduce_order(lh, transaction_qty);
                 qty -= transaction_qty;
 
-                actions.push(MatchingWrapper{
-                    resp: MatchingResponse {
+                actions.push(OBResponseWrapper{
+                    resp: OBResponse {
                         execute: ExecuteResponse::new(lh, transaction_qty)
                     }, 
-                    typ: MatchingType::EXECUTE,
+                    typ: OBRespType::EXECUTE,
                 });
-                actions.push(MatchingWrapper{
-                    resp: MatchingResponse {
-                        price: PriceLevelResponse::new(price_delta.0, price_delta.1),
+                actions.push(OBResponseWrapper{
+                    resp: OBResponse {
+                        price: price_delta,
                     },
-                    typ: MatchingType::PRICE
+                    typ: OBRespType::PRICE
                 });
             }
         }
 
         if qty > 0 {
-            let oid = self.add(qty, book_id, price);
-            actions.push(MatchingWrapper{
-                resp: MatchingResponse {
+            let oid = self.add(qty, price);
+            actions.push(OBResponseWrapper{
+                resp: OBResponse {
                     add: AddResponse::new(oid)
                 },
-                typ: MatchingType::ADD
+                typ: OBRespType::ADD
             });
-            actions.push(MatchingWrapper{
-                resp: MatchingResponse {
+            actions.push(OBResponseWrapper{
+                resp: OBResponse {
                     price: PriceLevelResponse::new(price, qty as i64),
                 },
-                typ: MatchingType::PRICE
+                typ: OBRespType::PRICE
             });
         }
 

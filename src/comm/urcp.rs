@@ -5,10 +5,12 @@ use derive_more::Constructor;
 use std::mem;
 
 unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
-    ::core::slice::from_raw_parts(
+    let ret = ::core::slice::from_raw_parts(
         (p as *const T) as *const u8,
-        ::core::mem::size_of::<T>(),
-    )
+        mem::size_of::<T>(),
+    );
+    debug_assert_eq!(ret.len(), mem::size_of::<T>());
+    ret
 }
 
 unsafe fn u8_slice_to_struct<T: Copy>(s: &[u8]) -> T {
@@ -29,6 +31,7 @@ pub enum OBReqType {
     REDUCE = b'R',
     FLUSH = b'F',
     START = b'S',
+    UNREACHABLE = b'-', // if i don't have it infinite loop bitches at me
 }
 
 impl OBReqType {
@@ -45,6 +48,19 @@ impl OBReqType {
 pub struct OBRequestWrapper {
     pub req: OBRequest,
     pub typ: OBReqType
+}
+
+impl std::fmt::Debug for OBRequestWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.typ {
+            OBReqType::ADD => unsafe { self.req.add.fmt(f) },
+            OBReqType::CANCEL => unsafe { self.req.cancel.fmt(f) },
+            OBReqType::REDUCE => unsafe { self.req.reduce.fmt(f) },
+            OBReqType::FLUSH => unsafe { self.req.flush.fmt(f) },
+            OBReqType::START => unsafe { self.req.start.fmt(f) },
+            _ => f.write_str("unreachable")
+        }
+    }
 }
 
 #[derive(Copy,Clone)]
@@ -115,7 +131,7 @@ pub enum OBRespType {
     ADD = b'A',
     EXECUTE = b'X',
     PRICE = b'$',
-    DELIM = b'#'
+    DELIM = b'#',
 }
 
 impl OBRespType {
@@ -129,9 +145,21 @@ impl OBRespType {
     }
 }
 
+#[repr(C)]
 pub struct OBResponseWrapper {
     pub resp: OBResponse,
     pub typ: OBRespType
+}
+
+impl std::fmt::Debug for OBResponseWrapper {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.typ {
+            OBRespType::ADD => unsafe { self.resp.add.fmt(f) },
+            OBRespType::EXECUTE => unsafe { self.resp.execute.fmt(f) },
+            OBRespType::PRICE => unsafe { self.resp.price.fmt(f) },
+            OBRespType::DELIM => f.write_str("end of transmission"),
+        }
+    }
 }
 
 #[derive(Clone,Copy)]
@@ -140,7 +168,9 @@ pub union OBResponse {
     pub add: AddResponse,
     pub execute: ExecuteResponse,
     pub price: PriceLevelResponse,
+    pub end: DelimResponse
 }
+
 
 #[derive(Debug,Constructor,Clone,Copy)]
 pub struct AddResponse {
@@ -159,6 +189,10 @@ pub struct PriceLevelResponse {
     pub delta: i64
 }
 
+#[derive(Debug,Constructor,Clone,Copy)]
+pub struct DelimResponse {
+}
+
 impl PriceLevelResponse {
     pub fn from_pair(pair: (i8, i64)) -> Self {
         PriceLevelResponse {
@@ -173,12 +207,12 @@ pub fn write_response_vec(stream: &mut UnixStream, resps: Vec<OBResponseWrapper>
         write_response(stream, &resp.typ, &resp.resp)?;
     }
 
-    stream.write(&[b'#'])?;
+    write_response(stream, &OBRespType::DELIM, &OBResponse{ end: DelimResponse{} })?;
     Ok(())
 }
 
 pub fn write_response(stream: &mut UnixStream, typ: &OBRespType, data: &OBResponse) -> Result<()> {
-    let u8_slice = unsafe { any_as_u8_slice(&data) };
+    let u8_slice = unsafe { any_as_u8_slice::<OBResponse>(data) };
     stream.write(&[typ.to_u8()])?;
     stream.write_all(&u8_slice)?;
     Ok(())
@@ -196,4 +230,17 @@ pub fn read_response(stream: &mut UnixStream) -> Result<OBResponseWrapper> {
         typ: OBRespType::from_u8(char_buf[0]),
         resp: union
     })
+}
+
+pub fn read_response_vec(stream: &mut UnixStream) -> Result<Vec<OBResponseWrapper>> {
+    let mut ret: Vec<OBResponseWrapper> = Vec::new();
+
+    loop {
+        let response = read_response(stream)?;
+        match response.typ {
+            OBRespType::DELIM => break,
+            _ => ret.push(response),
+        }
+    }
+    Ok(ret)
 }
