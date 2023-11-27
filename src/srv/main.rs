@@ -67,7 +67,9 @@ fn main() -> Result<()> {
                 },
                 OBRequestWrapper {req: OBRequest {level_view: req}, typ: OBReqType::LEVELVIEW} => {
                     let view_response = manager[req.ob_id as usize].get_level_view();
-                    write_response(&mut listener, &OBRespType::LEVELVIEW, &OBResponse { view: view_response })?;
+                    write_response(&mut listener, &OBRespType::LEVELVIEW, &OBResponse { view: PriceViewResponse {
+                        prices: view_response
+                    }})?;
                 }
                 _ => break
             };
