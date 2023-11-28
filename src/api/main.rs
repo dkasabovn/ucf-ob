@@ -19,6 +19,11 @@ async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello world!")
 }
 
+#[get("/result")]
+async fn result() -> impl Responder {
+    HttpResponse::Ok().body("okayga")
+}
+
 #[post("/echo")]
 async fn echo(req_body: String) -> impl Responder {
     HttpResponse::Ok().body(req_body)
@@ -99,17 +104,15 @@ const STREAM_ADDR: &'static str = "/tmp/fish.socket";
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let unix_stream: Data<Mutex<UnixStream>> = Data::new(Mutex::new(
-        UnixStream::connect(STREAM_ADDR).expect("Couldn't connect to unix socket"),
-    ));
+    //let unix_stream: Data<Mutex<UnixStream>> = Data::new(Mutex::new(
+    //    UnixStream::connect(STREAM_ADDR).expect("Couldn't connect to unix socket"),
+    //));
 
     HttpServer::new(move || {
         App::new()
-            .app_data(unix_stream.clone())
             .service(hello)
             .service(echo)
-            .route("/hey", web::get().to(manual_hello))
-            .route("/ws/", web::get().to(index))
+            .service(result)
     })
     .bind(("127.0.0.1", 8080))?
     .run()
