@@ -34,7 +34,7 @@ pub async fn create_order(user: FirebaseUser, client: Data<Client>, payload: web
 
     match client.add_order(&user, ip, payload.qty, payload.market) {
         Some(add_response) => HttpResponse::Ok().json(add_response),
-        None => return HttpResponse::InternalServerError().body("we fucked up"),
+        None => return HttpResponse::BadRequest().body("bad request not enough schmoney"),
     }
 }
 

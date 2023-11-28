@@ -73,7 +73,6 @@ impl Client {
 
         let ret = stream.add_order(qty, price, book_id).unwrap();
 
-
         let mut add_response = None;
 
         for result in ret.iter() {
@@ -106,7 +105,13 @@ impl Client {
             }
         }
 
-        add_response
+        match add_response {
+            Some(e) => Some(e),
+            None => Some(AddResponse{
+                qty: 0,
+                oid: 0,
+            })
+        }
     }
     pub fn reduce_order(&self, user: &User, oid: usize, qty: u64, book_id: u16) -> Option<()> {
         let mut repo = self.inner.repo.lock().unwrap();
