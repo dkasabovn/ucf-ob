@@ -52,7 +52,7 @@ impl Client {
         let mut repo = self.inner.repo.lock().unwrap();
         let mut stream = self.inner.stream.lock().unwrap();
 
-        if user.balance < qty as i32 {
+        if user.balance < (qty * (price as u64)) as i32 {
             return None;
         }
 
@@ -62,12 +62,12 @@ impl Client {
             unsafe {
                 match result {
                     OBResponseWrapper { resp: OBResponse { execute: resp }, typ: OBRespType::EXECUTE } => {
-                        let x_resp = repo.create_contract(user.id, resp.executed_oid, resp.qty);
+                        let _ = repo.create_contract(user.id, resp.executed_oid, resp.qty);
                         // TODO(nw): blocking send that order was executed to that user id to a tokio
                         // broadcast
                     },
                     OBResponseWrapper { resp: OBResponse { add: resp }, typ: OBRespType::ADD } => {
-                        let add_resp = repo.add_order_to_user(resp.oid, book_id, price, resp.qty, user.id);
+                        let _ = repo.add_order_to_user(resp.oid, book_id, price, resp.qty, user.id);
                         // TODO(nw): same shit
                     },
                     _ => unreachable!()
@@ -76,5 +76,25 @@ impl Client {
         }
 
         Some(())
+    }
+    pub fn reduce_order(&self, user: &User, oid: usize, qty: u64, book_id: u16) -> Option<()> {
+        let mut repo = self.inner.repo.lock().unwrap();
+        let mut stream = self.inner.stream.lock().unwrap();
+
+        // TODO(dk): reduce order from db
+        match stream.reduce_order(oid, qty, book_id) {
+            Ok(_) => Some(()),
+            _ => None
+        }
+    }
+    pub fn cancel_order(&self, user: &User, oid: usize, book_id: u16) -> Option<()> {
+        let mut repo = self.inner.repo.lock().unwrap();
+        let mut stream = self.inner.stream.lock().unwrap();
+
+        // TODO(dk): delete order from db
+        match stream.cancel_order(oid, book_id) {
+            Ok(_) => Some(()),
+            _ => None
+        }
     }
 }
