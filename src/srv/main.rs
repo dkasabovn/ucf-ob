@@ -8,7 +8,7 @@ use std::os::unix::net::*;
 
 const ORDER_SIZE: usize = 1000000;
 const LEVEL_SIZE: usize = 200;
-const BOOKS: u16 = 1;
+const BOOKS: u16 = 2;
 
 const STREAM_ADDR: &'static str = "/tmp/fish.socket";
 

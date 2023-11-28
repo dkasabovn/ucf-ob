@@ -165,8 +165,10 @@ impl Client {
                 } else {
                     100 - order.price
                 };
-
-
+                let return_balance = rp * order.qty;
+                if let Err(e) = repo.modify_user_balance(order.user_fk, return_balance) {
+                    println!("SQLE: {}", e);
+                }
             }
         }
 
