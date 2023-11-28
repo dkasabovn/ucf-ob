@@ -8,6 +8,7 @@ use serde_json::to_string;
 use actix::prelude::*;
 use futures::StreamExt;
 
+use fast_book::comm::domain::*;
 use fast_book::comm::client::Client;
 
 
@@ -36,7 +37,11 @@ impl Actor for FTXWS {
     fn started(&mut self, ctx: &mut Self::Context) {
         ctx.run_interval(Duration::from_millis(1000), move |ftxws, ctx| {
             let ob_levels = ftxws.client.get_ob_levels();
-            if let Ok(json) = to_string(&ob_levels) {
+            let pkg = ApiViewResponse {
+                typ: String::from("view"),
+                data: ob_levels
+            };
+            if let Ok(json) = to_string(&pkg) {
                 ctx.text(json);
             }
         });

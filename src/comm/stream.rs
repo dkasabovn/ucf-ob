@@ -6,7 +6,7 @@ use std::io::Result;
 
 pub struct InnerStream {
     stream: UnixStream,
-    prices: BTreeMap<i8, u64>,
+    prices: [BTreeMap<i8, u64>; 2],
 }
 
 impl InnerStream {
@@ -18,7 +18,7 @@ impl InnerStream {
         stream.set_write_timeout(None)?;
         Ok(Self{
             stream,
-            prices: BTreeMap::new(),
+            prices: [BTreeMap::new(), BTreeMap::new()],
         })
     }
     pub fn add_order(&mut self, qty: u64, price: i8, ob_id: u16) -> Result<Vec<OBResponseWrapper>> {
@@ -26,7 +26,7 @@ impl InnerStream {
         let mut responses = read_response_vec(&mut self.stream)?;
         responses.retain(|x| {
             if matches!(x.typ, OBRespType::PRICE) {
-                unsafe { self.handle_price_level(x.resp.price); }
+                unsafe { self.handle_price_level(x.resp.price, ob_id); }
                 false
             } else {
                 true
@@ -39,7 +39,7 @@ impl InnerStream {
         let price_level = read_response(&mut self.stream)?;
         assert!(matches!(price_level.typ, OBRespType::PRICE));
         unsafe {
-            self.handle_price_level(price_level.resp.price);
+            self.handle_price_level(price_level.resp.price, ob_id);
         }
         Ok(())
     }
@@ -48,14 +48,14 @@ impl InnerStream {
         let price_level = read_response(&mut self.stream)?;
         assert!(matches!(price_level.typ, OBRespType::PRICE));
         unsafe {
-            self.handle_price_level(price_level.resp.price);
+            self.handle_price_level(price_level.resp.price, ob_id);
         }
         Ok(())
     }
-    pub fn handle_price_level(&mut self, plu: PriceLevelResponse) {
-        match self.prices.get_mut(&plu.price) {
+    pub fn handle_price_level(&mut self, plu: PriceLevelResponse, ob_id: u16) {
+        match self.prices[ob_id as usize].get_mut(&plu.price) {
             None => {
-                self.prices.insert(plu.price, plu.delta as u64);
+                self.prices[ob_id as usize].insert(plu.price, plu.delta as u64);
             },
             Some(entry) => {
                 if plu.delta < 0 {
@@ -66,8 +66,8 @@ impl InnerStream {
             }
         }
     }
-    pub fn get_price_levels(&self) -> BTreeMap<i8, u64> {
-        self.prices.clone()
+    pub fn get_price_levels(&self) -> Vec<BTreeMap<i8, u64>> {
+        self.prices.to_vec()
     }
 }
 

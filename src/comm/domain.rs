@@ -27,3 +27,27 @@ pub struct UserOrder {
 pub struct GenericResponse {
     pub msg: String
 }
+
+#[derive(Serialize)]
+pub struct ApiViewResponse {
+    pub typ: String,
+    pub data: Vec<std::collections::BTreeMap<i8, u64>>
+}
+
+#[derive(Serialize)]
+pub struct ApiViewInner {
+    pub yes: Vec<(i8, u64)>,
+    pub no: Vec<(i8, u64)>
+}
+
+#[derive(Serialize)]
+pub struct ApiExecuteResponse {
+    pub typ: String,
+    pub data: ApiExecuteInner
+}
+
+#[derive(Serialize)]
+pub struct ApiExecuteInner {
+    pub oid: usize,
+    pub qty: u64
+}

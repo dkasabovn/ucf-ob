@@ -8,6 +8,7 @@ use std::sync::Arc;
 use std::io;
 
 use tokio::sync::broadcast::Sender;
+use serde_json::to_string;
 
 pub struct InnerClient {
     stream: Mutex<InnerStream>,
@@ -80,17 +81,23 @@ impl Client {
                 match result {
                     OBResponseWrapper { resp: OBResponse { execute: resp }, typ: OBRespType::EXECUTE } => {
                         repo.create_contract(user.id, resp.executed_oid, resp.qty).unwrap();
-                        match self.inner.sender.send("execute order".to_string()) {
-                            Err(e) => println!("ERROR BCAST: {}", e),
-                            _ => (),
+                        let execute_packet = ApiExecuteResponse {
+                            typ: String::from("execute"),
+                            data: ApiExecuteInner {
+                                oid: resp.executed_oid,
+                                qty: resp.qty,
+                            }
+                        };
+                        if let Ok(json) = to_string(&execute_packet) {
+                            match self.inner.sender.send(json) {
+                                Err(e) => println!("ERROR BCAST: {}", e),
+                                _ => (),
+                            }
                         }
+                        
                     },
                     OBResponseWrapper { resp: OBResponse { add: resp }, typ: OBRespType::ADD } => {
                         repo.add_order_to_user(resp.oid, book_id, price, resp.qty, user.id).unwrap();
-                        match self.inner.sender.send("add order".to_string()) {
-                            Err(e) => println!("ERROR BCAST: {}", e),
-                            _ => (),
-                        };
                         add_response = Some(resp.clone());
                     },
                     _ => unreachable!()
@@ -126,7 +133,7 @@ impl Client {
             _ => None
         }
     }
-    pub fn get_ob_levels(&self) -> std::collections::BTreeMap<i8, u64> {
+    pub fn get_ob_levels(&self) -> Vec<std::collections::BTreeMap<i8, u64>> {
         let stream = self.inner.stream.lock().unwrap();
         stream.get_price_levels()
     }
