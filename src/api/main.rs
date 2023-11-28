@@ -1,4 +1,6 @@
 mod book;
+mod users;
+mod order;
 
 use crate::book::get_book_data;
 use actix::{Actor, StreamHandler};
