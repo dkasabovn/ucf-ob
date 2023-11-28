@@ -25,6 +25,7 @@ pub async fn create_order(user: FirebaseUser, client: Data<Client>, payload: web
     // we only have 2 markets
     assert!(payload.market < 2);
     assert!(payload.price > 0 && payload.price < 100);
+    assert!(payload.qty > 0);
 
     let ip = if payload.yes {
         -payload.price

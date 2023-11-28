@@ -74,6 +74,8 @@ impl Client {
             return None;
         }
 
+        println!("Adding order P: {} Q: {} B: {}", price, qty, book_id);
+
         let ret = match stream.add_order(qty, price, book_id) {
             Err(e) => {
                 println!("{}", e);
