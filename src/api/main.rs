@@ -29,8 +29,9 @@ const STREAM_ADDR: &'static str = "/tmp/fish.socket";
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let firebase_auth = firebase_auth::FirebaseAuth::new("bets-fc705").await;
-    let (tx, _) = broadcast::channel::<String>(100);
+    let (tx, mut rx) = broadcast::channel::<String>(100);
     let client = Client::new(STREAM_ADDR, tx.clone())?;
+
 
     HttpServer::new(move || {
         
