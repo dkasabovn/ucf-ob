@@ -83,13 +83,9 @@ impl Client {
                 match result {
                     OBResponseWrapper { resp: OBResponse { execute: resp }, typ: OBRespType::EXECUTE } => {
                         repo.create_contract(user.id, resp.executed_oid, resp.qty).unwrap();
-                        println!("created repo contract");
-                        self.inner.sender.send("execute order".to_string()).unwrap();
                     },
                     OBResponseWrapper { resp: OBResponse { add: resp }, typ: OBRespType::ADD } => {
                         repo.add_order_to_user(resp.oid, book_id, price, resp.qty, user.id).unwrap();
-                        println!("added order");
-                        self.inner.sender.send("add order".to_string()).unwrap();
                         add_response = Some(resp.clone());
                     },
                     _ => unreachable!()
