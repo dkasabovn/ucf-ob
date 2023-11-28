@@ -34,7 +34,7 @@ impl Actor for FTXWS {
     type Context = ws::WebsocketContext<Self>;
 
     fn started(&mut self, ctx: &mut Self::Context) {
-        ctx.run_interval(Duration::from_millis(1000), move |ftxws, ctx| {
+        ctx.run_interval(Duration::from_millis(250), move |ftxws, ctx| {
             let ob_levels = ftxws.client.get_ob_levels();
             let pkg = ApiViewResponse {
                 typ: String::from("view"),
