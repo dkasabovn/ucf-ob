@@ -41,6 +41,10 @@ impl<T> MemArena<T> for BasicArena<T> {
     fn len(self: &Self) -> usize {
         self.size
     }
+    fn clear(self: &mut Self) {
+        self.size = 0;
+        self.free.clear();
+    }
 }
 
 
@@ -67,5 +71,6 @@ pub trait MemArena<T>: ops::IndexMut<usize> + ops::Index<usize> {
     fn free(self: &mut Self, idx: usize);
     fn set(self: &mut Self, idx: usize, data: T);
     fn len(self: &Self) -> usize;
+    fn clear(self: &mut Self);
 }
 

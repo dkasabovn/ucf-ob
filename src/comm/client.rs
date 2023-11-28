@@ -71,7 +71,15 @@ impl Client {
             return None;
         }
 
-        let ret = stream.add_order(qty, price, book_id).unwrap();
+        let ret = match stream.add_order(qty, price, book_id) {
+            Err(e) => {
+                println!("{}", e);
+                return None;
+            },
+            Ok(data) => data,
+        };
+
+        let _ = repo.modify_user_balance(user.id, -req_balance);
 
         let mut add_response = None;
 

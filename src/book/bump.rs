@@ -29,5 +29,8 @@ impl<T> BumpAllocator<T> {
             self.arena[idx].assume_init_mut()
         }
     }
+    pub fn clear(self: &mut Self) {
+        self.size = 0;
+    }
 }
 

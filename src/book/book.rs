@@ -73,6 +73,11 @@ pub struct Orderbook {
 }
 
 impl Orderbook {
+    pub fn clear(&mut self) {
+        self.sorted_yes.clear();
+        self.sorted_no.clear();
+    }
+
     pub fn with_capacities(
         order_arena: Rc<RefCell<BumpAllocator<OrderChain>>>,
         level_capacity: usize,
