@@ -87,7 +87,7 @@ impl Client {
         let mut add_response = None;
 
         for result in ret.iter() {
-            println!("{:?}", result);
+            println!("In Client: {:?}", result);
             unsafe {
                 match result {
                     OBResponseWrapper { resp: OBResponse { execute: resp }, typ: OBRespType::EXECUTE } => {
@@ -149,6 +149,26 @@ impl Client {
             },
             _ => None
         }
+    }
+    pub fn flush_exchange(&self, top: bool, right: bool) -> Option<()> {
+        let mut repo = self.inner.repo.lock().unwrap();
+        let mut stream = self.inner.stream.lock().unwrap();
+
+        let orders = repo.get_all_orders();
+
+        if let Ok(orders) = orders {
+            for order in orders.iter() {
+                let rp = if order.price < 0 {
+                    -order.price
+                } else {
+                    100 - order.price
+                };
+
+
+            }
+        }
+
+        None 
     }
     pub fn get_ob_levels(&self) -> Vec<std::collections::BTreeMap<i8, u64>> {
         let stream = self.inner.stream.lock().unwrap();

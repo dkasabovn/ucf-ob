@@ -213,6 +213,29 @@ impl InnerRepo {
         Ok(())
     }
 
+    pub fn get_all_orders(&mut self) -> Result<Vec<UserOrder>> {
+        let mut stmt = self.con.prepare(
+            "SELECT * FROM user_orders",
+        )?;
+        let rows = stmt.query_map(params![], |row| Ok(UserOrder{
+            id: row.get(0)?,
+            book_id: row.get(1)?,
+            price: row.get(2)?,
+            qty: row.get(3)?,
+            user_fk: row.get(4)?,
+        }))?;
+
+        let ret: Vec<UserOrder> = rows.into_iter().map(|x| x.unwrap_or_else(|_| UserOrder{
+            book_id: -1,
+            id: -1,
+            price: -1,
+            qty: -1,
+            user_fk: -1,
+        })).collect();
+
+        Ok(ret)
+    }
+
     pub fn get_orders(&mut self, uid: i32) -> Result<Vec<UserOrder>> {
         let mut stmt = self.con.prepare(
             "SELECT * FROM user_orders WHERE user_fk = ?1",

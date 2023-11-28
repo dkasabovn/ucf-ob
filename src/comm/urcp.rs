@@ -257,6 +257,5 @@ pub fn read_response_vec(stream: &mut UnixStream) -> Result<Vec<OBResponseWrappe
             _ => ret.push(response),
         }
     }
-    println!("finished reading responses correctly");
     Ok(ret)
 }

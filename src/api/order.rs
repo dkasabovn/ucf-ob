@@ -87,3 +87,13 @@ pub async fn reduce_order(user: FirebaseUser, client: Data<Client>, payload: web
         None => HttpResponse::InternalServerError().body("failure"),
     }
 }
+
+#[put("/result/{result_quad}")]
+pub async fn set_result(client: Data<Client>, payload: web::Path<usize>) -> impl Responder {
+    let bit_repr = payload.into_inner();
+
+    let top: bool = bit_repr & 2 > 0;
+    let right: bool = bit_repr & 1 > 0;
+
+    HttpResponse::Ok().body("success")
+}
