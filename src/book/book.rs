@@ -42,6 +42,7 @@ impl Level {
     }
 }
 
+#[derive(Debug)]
 pub struct PriceLevel {
     price: i8,
     level_id: usize,
@@ -151,18 +152,18 @@ impl Orderbook {
         let mut order_arena = self.order_arena.borrow_mut();
         let order = order_arena.get(order_id);
         // debug_assert!(order.qty >= qty);
-        qty = cmp::min(order.qty, qty); // prevents underflow errors in case of user tardation
+        // qty = cmp::min(order.qty, qty); // prevents underflow errors in case of user tardation
         let level = &mut self.level_arena[order.level_id];
         level.qty -= qty;
         order.qty -= qty;
-
+        
         let ret = PriceLevelResponse {
             price: level.price,
             delta: -(qty as i64),
         };
 
         if level.qty == 0 {
-            let sorted_levels = if level.price < 0 {
+            let sorted_levels: &mut Vec<PriceLevel> = if level.price < 0 {
                 &mut self.sorted_yes
             } else {
                 &mut self.sorted_no
@@ -170,9 +171,9 @@ impl Orderbook {
             let idx = sorted_levels
                 .iter()
                 .rev()
-                .position(|x| x.price == level.price);
+                .position(|x| x.level_id == order.level_id);
             debug_assert!(idx.is_some());
-            sorted_levels.remove(idx.unwrap());
+            sorted_levels.remove(sorted_levels.len() - 1 - idx.unwrap());
             self.level_arena.free(order.level_id);
         } else if order.qty == 0 {
             // we don't have to do this if we lose the level because references to these order will
