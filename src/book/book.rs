@@ -232,7 +232,6 @@ impl Orderbook {
         }
     }
     pub fn match_order(self: &mut Self, mut qty: u64, price: i8) -> Vec<OBResponseWrapper> {
-        println!("entered amtching");
         let mut actions: Vec<OBResponseWrapper> = Vec::new();
 
         while let Some((lh, lp)) = self.best_order(price) {
@@ -256,6 +255,10 @@ impl Orderbook {
             } else {
                 break;
             }
+
+            if qty == 0 {
+                break;
+            }
         }
 
         if qty > 0 {
@@ -274,7 +277,6 @@ impl Orderbook {
             });
         }
 
-        println!("exiting matching");
         actions
     }
 
