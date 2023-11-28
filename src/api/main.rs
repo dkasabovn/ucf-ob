@@ -4,6 +4,7 @@ mod order;
 mod ws;
 
 use actix_web::{get, post, App, HttpResponse, HttpServer, Responder, web};
+use actix_cors::Cors;
 use tokio::sync::broadcast;
 
 use fast_book::comm::client::Client;
@@ -32,7 +33,14 @@ async fn main() -> std::io::Result<()> {
     let client = Client::new(STREAM_ADDR, tx.clone())?;
 
     HttpServer::new(move || {
+        
+        let cors = Cors::default()
+            .allow_any_method()
+            .allow_any_header()
+            .allow_any_origin();
+
         App::new()
+            .wrap(cors)
             .app_data(web::Data::new(firebase_auth.clone()))
             .app_data(web::Data::new(tx.clone()))
             .app_data(web::Data::new(client.clone()))
