@@ -60,8 +60,7 @@ pub async fn get_orders(user: FirebaseUser, client: Data<Client>) -> impl Respon
 pub async fn get_orders_satisfied(user: FirebaseUser, client: Data<Client>) -> impl Responder {
     let user = match client.get_user(user.sub) {
         Some(user) => user,
-        _ => return HttpResponse::Unauthorized().body("howdy"),
-    };
+        _ => return HttpResponse::Unauthorized().body("howdy"), };
 
     match client.get_contracts_for_user(&user) {
         Some(orders) => HttpResponse::Ok().json(orders),
