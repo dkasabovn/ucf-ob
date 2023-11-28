@@ -54,19 +54,19 @@ impl InnerRepo {
         match con.execute_batch(
             "BEGIN;
              CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
+                id INTEGER PRIMARY KEY,
                 sub TEXT NOT NULL UNIQUE,
                 balance INT NOT NULL
              );
              CREATE TABLE IF NOT EXISTS user_orders (
-                id SERIAL PRIMARY KEY,
+                id INTEGER PRIMARY KEY,
                 book_id INT NOT NULL,
                 price INT NOT NULL,
                 qty INT NOT NULL,
                 user_fk INT NOT NULL REFERENCES users(id)
              );
              CREATE TABLE IF NOT EXISTS contracts (
-                id SERIAL PRIMARY KEY,
+                id INTEGER PRIMARY KEY,
                 user_no_fk INT NOT NULL REFERENCES users(id),
                 user_yes_fk INT NOT NULL REFERENCES users(id),
                 qty INT NOT NULL
