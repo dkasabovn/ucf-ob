@@ -62,8 +62,9 @@ impl Client {
     pub fn add_order(&self, user: &User, price: i8, qty: u64, book_id: u16) -> Option<AddResponse> {
         let mut repo = self.inner.repo.lock().unwrap();
         let mut stream = self.inner.stream.lock().unwrap();
-
-        let req_balance: i32 = (qty * (price.abs() as u64)) as i32;
+    
+        let math_price: u64 = price.abs() as u64;
+        let req_balance: i32 = (qty * math_price).try_into().expect("failed req balance math");
 
         if user.balance < req_balance  {
             return None;
