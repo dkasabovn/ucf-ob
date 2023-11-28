@@ -9,7 +9,6 @@ use std::mem;
 
 const STREAM_ADDR: &'static str = "/tmp/fish.socket";
 
-
 fn main() -> Result<()> {
     let mut listener = UnixStream::connect(STREAM_ADDR)?;
 

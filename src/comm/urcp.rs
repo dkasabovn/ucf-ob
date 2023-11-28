@@ -1,14 +1,11 @@
-use std::os::unix::net::UnixStream;
+use derive_more::Constructor;
 use std::io::prelude::*;
 use std::io::Result;
-use derive_more::Constructor;
 use std::mem;
+use std::os::unix::net::UnixStream;
 
 unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
-    let ret = ::core::slice::from_raw_parts(
-        (p as *const T) as *const u8,
-        mem::size_of::<T>(),
-    );
+    let ret = ::core::slice::from_raw_parts((p as *const T) as *const u8, mem::size_of::<T>());
     debug_assert_eq!(ret.len(), mem::size_of::<T>());
     ret
 }
@@ -23,7 +20,7 @@ unsafe fn u8_slice_to_struct<T: Copy>(s: &[u8]) -> T {
 
 // -------
 
-#[derive(Clone,Copy)]
+#[derive(Clone, Copy)]
 #[repr(u8)]
 pub enum OBReqType {
     ADD = b'A',
@@ -31,6 +28,7 @@ pub enum OBReqType {
     REDUCE = b'R',
     FLUSH = b'F',
     START = b'S',
+    LEVELVIEW = b'V',
     UNREACHABLE = b'-', // if i don't have it infinite loop bitches at me
 }
 
@@ -39,15 +37,13 @@ impl OBReqType {
         *self as u8
     }
     pub fn from_u8(v: u8) -> Self {
-        unsafe {
-            mem::transmute(v)
-        }
+        unsafe { mem::transmute(v) }
     }
 }
 
 pub struct OBRequestWrapper {
     pub req: OBRequest,
-    pub typ: OBReqType
+    pub typ: OBReqType,
 }
 
 impl std::fmt::Debug for OBRequestWrapper {
@@ -58,12 +54,13 @@ impl std::fmt::Debug for OBRequestWrapper {
             OBReqType::REDUCE => unsafe { self.req.reduce.fmt(f) },
             OBReqType::FLUSH => unsafe { self.req.flush.fmt(f) },
             OBReqType::START => unsafe { self.req.start.fmt(f) },
-            _ => f.write_str("unreachable")
+            OBReqType::LEVELVIEW => unsafe { self.req.start.fmt(f) },
+            _ => f.write_str("unreachable"),
         }
     }
 }
 
-#[derive(Copy,Clone)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 pub union OBRequest {
     pub add: AddRequest,
@@ -71,36 +68,42 @@ pub union OBRequest {
     pub reduce: ReduceRequest,
     pub flush: FlushRequest,
     pub start: StartRequest,
+    pub level_view: LevelViewRequest,
 }
 
-#[derive(Debug,Constructor,Clone,Copy)]
+#[derive(Debug, Constructor, Clone, Copy)]
 pub struct AddRequest {
     pub qty: u64,
     pub price: i8,
-    pub ob_id: u16
+    pub ob_id: u16,
 }
 
-#[derive(Debug,Constructor,Clone,Copy)]
+#[derive(Debug, Constructor, Clone, Copy)]
 pub struct CancelRequest {
     pub oid: usize,
-    pub ob_id: u16
+    pub ob_id: u16,
 }
 
-#[derive(Debug,Constructor,Clone,Copy)]
+#[derive(Debug, Constructor, Clone, Copy)]
 pub struct ReduceRequest {
     pub oid: usize,
     pub qty: u64,
-    pub ob_id: u16
+    pub ob_id: u16,
 }
 
-#[derive(Debug,Constructor,Clone,Copy)]
+#[derive(Debug, Constructor, Clone, Copy)]
 pub struct FlushRequest {
-    pub ob_id: u16
+    pub ob_id: u16,
 }
 
-#[derive(Debug,Constructor,Clone,Copy)]
+#[derive(Debug, Constructor, Clone, Copy)]
 pub struct StartRequest {
-    pub ob_id: u16
+    pub ob_id: u16,
+}
+
+#[derive(Debug, Constructor, Clone, Copy)]
+pub struct LevelViewRequest {
+    pub ob_id: u16,
 }
 
 pub fn write_request(stream: &mut UnixStream, typ: &OBReqType, req: &OBRequest) -> Result<()> {
@@ -117,21 +120,21 @@ pub fn read_request(stream: &mut UnixStream) -> Result<OBRequestWrapper> {
 
     let union = unsafe { u8_slice_to_struct::<OBRequest>(&union_buf) };
 
-    Ok(OBRequestWrapper{
+    Ok(OBRequestWrapper {
         typ: OBReqType::from_u8(char_buf[0]),
-        req: union
+        req: union,
     })
 }
 
-
 // --------------------------
-#[derive(Clone,Copy)]
+#[derive(Clone, Copy)]
 #[repr(u8)]
 pub enum OBRespType {
     ADD = b'A',
     EXECUTE = b'X',
     PRICE = b'$',
     DELIM = b'#',
+    LEVELVIEW = b'V',
 }
 
 impl OBRespType {
@@ -139,16 +142,14 @@ impl OBRespType {
         *self as u8
     }
     pub fn from_u8(v: u8) -> Self {
-        unsafe {
-            std::mem::transmute(v)
-        }
+        unsafe { std::mem::transmute(v) }
     }
 }
 
 #[repr(C)]
 pub struct OBResponseWrapper {
     pub resp: OBResponse,
-    pub typ: OBRespType
+    pub typ: OBRespType,
 }
 
 impl std::fmt::Debug for OBResponseWrapper {
@@ -158,46 +159,52 @@ impl std::fmt::Debug for OBResponseWrapper {
             OBRespType::EXECUTE => unsafe { self.resp.execute.fmt(f) },
             OBRespType::PRICE => unsafe { self.resp.price.fmt(f) },
             OBRespType::DELIM => f.write_str("end of transmission"),
+            OBRespType::LEVELVIEW => f.write_str("level view"),
         }
     }
 }
 
-#[derive(Clone,Copy)]
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub union OBResponse {
     pub add: AddResponse,
     pub execute: ExecuteResponse,
     pub price: PriceLevelResponse,
-    pub end: DelimResponse
+    pub view: PriceViewResponse,
+    pub end: DelimResponse,
 }
 
-
-#[derive(Debug,Constructor,Clone,Copy)]
+#[derive(Debug, Constructor, Clone, Copy)]
 pub struct AddResponse {
-    pub oid: usize
+    pub oid: usize,
 }
 
-#[derive(Debug,Constructor,Clone,Copy)]
+#[derive(Debug, Constructor, Clone, Copy)]
 pub struct ExecuteResponse {
     pub executed_oid: usize,
-    pub qty: u64
+    pub qty: u64,
 }
 
-#[derive(Debug,Constructor,Clone,Copy)]
+#[derive(Debug, Constructor, Clone, Copy)]
 pub struct PriceLevelResponse {
     pub price: i8,
-    pub delta: i64
+    pub delta: i64,
 }
 
-#[derive(Debug,Constructor,Clone,Copy)]
-pub struct DelimResponse {
+#[derive(Debug, Constructor, Clone, Copy)]
+pub struct DelimResponse {}
+
+type PriceViewResponseArray = [u64; 200];
+#[derive(Debug, Constructor, Clone, Copy)]
+pub struct PriceViewResponse {
+    pub prices: PriceViewResponseArray,
 }
 
 impl PriceLevelResponse {
     pub fn from_pair(pair: (i8, i64)) -> Self {
         PriceLevelResponse {
             price: pair.0,
-            delta: pair.1
+            delta: pair.1,
         }
     }
 }
@@ -207,7 +214,13 @@ pub fn write_response_vec(stream: &mut UnixStream, resps: Vec<OBResponseWrapper>
         write_response(stream, &resp.typ, &resp.resp)?;
     }
 
-    write_response(stream, &OBRespType::DELIM, &OBResponse{ end: DelimResponse{} })?;
+    write_response(
+        stream,
+        &OBRespType::DELIM,
+        &OBResponse {
+            end: DelimResponse {},
+        },
+    )?;
     Ok(())
 }
 
@@ -226,9 +239,9 @@ pub fn read_response(stream: &mut UnixStream) -> Result<OBResponseWrapper> {
 
     let union = unsafe { u8_slice_to_struct::<OBResponse>(&union_buf) };
 
-    Ok(OBResponseWrapper{
+    Ok(OBResponseWrapper {
         typ: OBRespType::from_u8(char_buf[0]),
-        resp: union
+        resp: union,
     })
 }
 

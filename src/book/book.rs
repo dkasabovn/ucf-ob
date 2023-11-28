@@ -1,16 +1,16 @@
-use crate::book::pool::{BasicArena, MemArena};
 use crate::book::bump::BumpAllocator;
+use crate::book::pool::{BasicArena, MemArena};
 use crate::comm::urcp::*;
-use std::cmp;
 use std::cell::RefCell;
+use std::cmp;
 use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct OrderChain {
     qty: u64,
     level_id: usize,
-    next: usize, // this pointer should be in the bump arena 
-    prev: usize
+    next: usize, // this pointer should be in the bump arena
+    prev: usize,
 }
 
 impl OrderChain {
@@ -19,7 +19,7 @@ impl OrderChain {
             qty: qty,
             level_id: usize::MAX,
             next: usize::MAX,
-            prev: usize::MAX
+            prev: usize::MAX,
         }
     }
     fn next(self: &OrderChain) -> usize {
@@ -34,7 +34,7 @@ pub struct Level {
     pub head: usize, // this pointer should be in the bump arena
     pub tail: usize, // this pointer should be in the bump arena
     price: i8,
-    qty: u64
+    qty: u64,
 }
 
 impl Level {
@@ -43,24 +43,24 @@ impl Level {
             head: usize::MAX,
             tail: usize::MAX,
             price: price,
-            qty: qty
+            qty: qty,
         }
     }
 }
 
 pub struct PriceLevel {
     price: i8,
-    level_id: usize
+    level_id: usize,
 }
 
 pub struct Orderbook {
-    // just generally its easier to think of everything as a 'yes' 
+    // just generally its easier to think of everything as a 'yes'
     // where no's sell/buy with other yes' to form a contract
-    // 
+    //
     // Really at the end of the day forming a contract is just a matter of agreeing on a yes price
 
     // These sorted vecs should be small enough to perma be in cache; sorted in asc order
-    // 
+    //
     // sorted {price, qty, chain}
     sorted_yes: Vec<PriceLevel>,
     // sorted {price, qty, chain}
@@ -69,11 +69,14 @@ pub struct Orderbook {
     // map[oid] Order
     order_arena: Rc<RefCell<BumpAllocator<OrderChain>>>,
     // map[level_id] price, qty, chain
-    level_arena: BasicArena<Level>
+    level_arena: BasicArena<Level>,
 }
 
 impl Orderbook {
-    pub fn with_capacities(order_arena: Rc<RefCell<BumpAllocator<OrderChain>>>, level_capacity: usize) -> Self {
+    pub fn with_capacities(
+        order_arena: Rc<RefCell<BumpAllocator<OrderChain>>>,
+        level_capacity: usize,
+    ) -> Self {
         Orderbook {
             sorted_no: Vec::new(),
             sorted_yes: Vec::new(),
@@ -84,7 +87,11 @@ impl Orderbook {
     fn insert_order(self: &mut Self, order_id: usize, price: i8) -> (i8, i64) {
         let mut order_arena = self.order_arena.borrow_mut();
         let order = order_arena.get(order_id);
-        let sorted_levels = if price < 0 { &mut self.sorted_yes } else { &mut self.sorted_no };
+        let sorted_levels = if price < 0 {
+            &mut self.sorted_yes
+        } else {
+            &mut self.sorted_no
+        };
         let mut insertion_idx: i32 = sorted_levels.len() as i32 - 1;
         let mut found = false;
 
@@ -105,10 +112,13 @@ impl Orderbook {
             order.level_id = level_idx;
             self.level_arena.set(level_idx, Level::new(price, 0));
             insertion_idx += 1;
-            sorted_levels.insert(insertion_idx as usize, PriceLevel{
-                price: price,
-                level_id: level_idx
-            });
+            sorted_levels.insert(
+                insertion_idx as usize,
+                PriceLevel {
+                    price: price,
+                    level_id: level_idx,
+                },
+            );
         }
 
         let level = &mut self.level_arena[order.level_id];
@@ -118,7 +128,7 @@ impl Orderbook {
     }
     fn add_to_order_chain(self: &mut Self, order_id: usize) {
         let mut order_arena = self.order_arena.borrow_mut();
-        let order = order_arena.get(order_id); 
+        let order = order_arena.get(order_id);
         let level = &mut self.level_arena[order.level_id];
 
         if level.head == usize::MAX {
@@ -150,8 +160,15 @@ impl Orderbook {
         };
 
         if level.qty == 0 {
-            let sorted_levels = if level.price < 0 { &mut self.sorted_yes } else { &mut self.sorted_no };
-            let idx = sorted_levels.iter().rev().position(|x| x.price == level.price);
+            let sorted_levels = if level.price < 0 {
+                &mut self.sorted_yes
+            } else {
+                &mut self.sorted_no
+            };
+            let idx = sorted_levels
+                .iter()
+                .rev()
+                .position(|x| x.price == level.price);
             debug_assert!(idx.is_some());
             sorted_levels.remove(idx.unwrap());
             self.level_arena.free(order.level_id);
@@ -189,21 +206,23 @@ impl Orderbook {
         self.add_to_order_chain(order_id);
         order_id
     }
-    fn best_order(self: &Self, price: i8) -> Option<(usize,i8)> {
+    fn best_order(self: &Self, price: i8) -> Option<(usize, i8)> {
         // get the best level for a particular price
         // doesn't guarantee a match just checks price sign for getting the order
 
-        let sorted_levels = if price < 0 { &self.sorted_no } else { &self.sorted_yes };
+        let sorted_levels = if price < 0 {
+            &self.sorted_no
+        } else {
+            &self.sorted_yes
+        };
         let price_level = sorted_levels.last();
 
         match price_level {
             None => None,
-            Some(price_level) => {
-                Some({
-                    let level = &self.level_arena[price_level.level_id];
-                    (level.head, level.price)
-                })
-            }
+            Some(price_level) => Some({
+                let level = &self.level_arena[price_level.level_id];
+                (level.head, level.price)
+            }),
         }
     }
     pub fn match_order(self: &mut Self, mut qty: u64, price: i8) -> Vec<OBResponseWrapper> {
@@ -211,22 +230,21 @@ impl Orderbook {
 
         while let Some((lh, lp)) = self.best_order(price) {
             let head_qty = self.order_arena.borrow_mut().get(lh).qty;
-            if lp.abs() <= price.abs() { // TODO: fix this line and we're gtg i think
+            if lp.abs() <= price.abs() {
+                // TODO: fix this line and we're gtg i think
                 let transaction_qty = cmp::min(qty, head_qty);
                 let price_delta = self.reduce_order(lh, transaction_qty);
                 qty -= transaction_qty;
 
-                actions.push(OBResponseWrapper{
+                actions.push(OBResponseWrapper {
                     resp: OBResponse {
-                        execute: ExecuteResponse::new(lh, transaction_qty)
-                    }, 
+                        execute: ExecuteResponse::new(lh, transaction_qty),
+                    },
                     typ: OBRespType::EXECUTE,
                 });
-                actions.push(OBResponseWrapper{
-                    resp: OBResponse {
-                        price: price_delta,
-                    },
-                    typ: OBRespType::PRICE
+                actions.push(OBResponseWrapper {
+                    resp: OBResponse { price: price_delta },
+                    typ: OBRespType::PRICE,
                 });
             } else {
                 break;
@@ -235,22 +253,48 @@ impl Orderbook {
 
         if qty > 0 {
             let oid = self.add(qty, price);
-            actions.push(OBResponseWrapper{
+            actions.push(OBResponseWrapper {
                 resp: OBResponse {
-                    add: AddResponse::new(oid)
+                    add: AddResponse::new(oid),
                 },
-                typ: OBRespType::ADD
+                typ: OBRespType::ADD,
             });
-            actions.push(OBResponseWrapper{
+            actions.push(OBResponseWrapper {
                 resp: OBResponse {
                     price: PriceLevelResponse::new(price, qty as i64),
                 },
-                typ: OBRespType::PRICE
+                typ: OBRespType::PRICE,
             });
         }
 
         actions
     }
+
+    pub fn get_level_view(self: &Self) -> [u64; 200] {
+        let mut ret: [u64; 200] = [0; 200];
+        for pl in &self.sorted_yes {
+            let level_id = pl.level_id;
+            let (qty, _) = {
+                let level = &self.level_arena[level_id];
+                (level.qty, level.head)
+            };
+
+            ret[level_id] = qty;
+        }
+
+        for pl in &self.sorted_no {
+            let level_id = pl.level_id;
+            let (qty, _) = {
+                let level = &self.level_arena[level_id];
+                (level.qty, level.head)
+            };
+
+            ret[level_id + 100] = qty;
+        }
+
+        return ret;
+    }
+
     pub fn print(self: &Self) {
         let mut order_arena = self.order_arena.borrow_mut();
         println!("YES");
