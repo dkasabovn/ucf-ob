@@ -211,7 +211,7 @@ impl Orderbook {
 
         while let Some((lh, lp)) = self.best_order(price) {
             let head_qty = self.order_arena.borrow_mut().get(lh).qty;
-            if lp.abs() < price.abs() { // TODO: fix this line and we're gtg i think
+            if lp.abs() <= price.abs() { // TODO: fix this line and we're gtg i think
                 let transaction_qty = cmp::min(qty, head_qty);
                 let price_delta = self.reduce_order(lh, transaction_qty);
                 qty -= transaction_qty;
@@ -228,6 +228,8 @@ impl Orderbook {
                     },
                     typ: OBRespType::PRICE
                 });
+            } else {
+                break;
             }
         }
 
