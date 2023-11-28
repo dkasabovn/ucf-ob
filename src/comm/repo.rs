@@ -46,7 +46,7 @@ pub struct InnerRepo {
 
 impl InnerRepo {
     pub fn new() -> io::Result<Self> {
-        let con: Connection = match Connection::open_in_memory() {
+        let con: Connection = match Connection::open("ftx.db") {
             Ok(con) => io::Result::Ok(con),
             Err(e) => io::Result::Err(io::Error::new(io::ErrorKind::Other, e)),
         }?;
