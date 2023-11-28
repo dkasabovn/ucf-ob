@@ -62,7 +62,7 @@ pub async fn get_orders_satisfied(user: FirebaseUser, client: Data<Client>) -> i
         Some(user) => user,
         _ => return HttpResponse::Unauthorized().body("howdy"), };
 
-    match client.get_contracts_for_user(&user) {
+    match client.get_contracts_for_user(user.id) {
         Some(orders) => HttpResponse::Ok().json(orders),
         _ => HttpResponse::NotFound().body("not found"),
     }
