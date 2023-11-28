@@ -1,22 +1,26 @@
 use fast_book::comm::client::Client;
 
-use actix_web::{get,post,delete,put,Responder,HttpResponse,web};
 use actix_web::web::Data;
+use actix_web::{delete, get, post, put, web, HttpResponse, Responder};
 
-use serde::{Serialize,Deserialize};
+use serde::{Deserialize, Serialize};
 
 use firebase_auth::FirebaseUser;
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct CreateOrder {
     qty: u64,
     price: i8,
     market: u16,
-    yes: bool
+    yes: bool,
 }
 
 #[post("/order")]
-pub async fn create_order(user: FirebaseUser, client: Data<Client>, payload: web::Json<CreateOrder>) -> impl Responder {
+pub async fn create_order(
+    user: FirebaseUser,
+    client: Data<Client>,
+    payload: web::Json<CreateOrder>,
+) -> impl Responder {
     let user = match client.get_user(user.sub) {
         Some(user) => user,
         _ => return HttpResponse::Unauthorized().body("howdy"),
@@ -52,8 +56,25 @@ pub async fn get_orders(user: FirebaseUser, client: Data<Client>) -> impl Respon
     }
 }
 
+#[get("/orders_satisfied")]
+pub async fn get_orders_satisfied(user: FirebaseUser, client: Data<Client>) -> impl Responder {
+    let user = match client.get_user(user.sub) {
+        Some(user) => user,
+        _ => return HttpResponse::Unauthorized().body("howdy"),
+    };
+
+    match client.get_contracts_for_user(&user) {
+        Some(orders) => HttpResponse::Ok().json(orders),
+        _ => HttpResponse::NotFound().body("not found"),
+    }
+}
+
 #[delete("/order/{oid}/{market}")]
-pub async fn delete_order(user: FirebaseUser, client: Data<Client>, payload: web::Path<(usize,u16)>) -> impl Responder {
+pub async fn delete_order(
+    user: FirebaseUser,
+    client: Data<Client>,
+    payload: web::Path<(usize, u16)>,
+) -> impl Responder {
     let user = match client.get_user(user.sub) {
         Some(user) => user,
         _ => return HttpResponse::Unauthorized().body("howdy"),
@@ -69,7 +90,7 @@ pub async fn delete_order(user: FirebaseUser, client: Data<Client>, payload: web
     }
 }
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ModifyOrder {
     qty: u64,
     oid: usize,
@@ -77,7 +98,11 @@ pub struct ModifyOrder {
 }
 
 #[put("/order")]
-pub async fn reduce_order(user: FirebaseUser, client: Data<Client>, payload: web::Json<ModifyOrder>) -> impl Responder {
+pub async fn reduce_order(
+    user: FirebaseUser,
+    client: Data<Client>,
+    payload: web::Json<ModifyOrder>,
+) -> impl Responder {
     let user = match client.get_user(user.sub) {
         Some(user) => user,
         _ => return HttpResponse::Unauthorized().body("howdy"),

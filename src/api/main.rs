@@ -50,6 +50,7 @@ async fn main() -> std::io::Result<()> {
             .service(users::get_user)
             .service(users::create_user)
             .service(order::get_orders)
+            .service(order::get_orders_satisfied)
             .service(order::create_order)
             .service(order::delete_order)
             .service(order::reduce_order)
