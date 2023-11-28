@@ -636,6 +636,7 @@ dependencies = [
  "firebase-auth",
  "rand",
  "rusqlite",
+ "serde",
  "tokio",
 ]
 
