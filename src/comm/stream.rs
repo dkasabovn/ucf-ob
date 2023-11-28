@@ -24,6 +24,9 @@ impl InnerStream {
     pub fn add_order(&mut self, qty: u64, price: i8, ob_id: u16) -> Result<Vec<OBResponseWrapper>> {
         write_request(&mut self.stream, &OBReqType::ADD, &OBRequest{ add: AddRequest::new(qty, price, ob_id) })?;
         let mut responses = read_response_vec(&mut self.stream)?;
+        for response in responses.iter() {
+            println!("{:?}", response);
+        }
         responses.retain(|x| {
             if matches!(x.typ, OBRespType::PRICE) {
                 unsafe { self.handle_price_level(x.resp.price); }
