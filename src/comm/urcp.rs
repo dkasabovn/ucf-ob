@@ -212,7 +212,6 @@ impl PriceLevelResponse {
 }
 
 pub fn write_response_vec(stream: &mut UnixStream, resps: Vec<OBResponseWrapper>) -> Result<()> {
-    println!("writing {} items to stream", resps.len());
     for resp in resps.iter() {
         write_response(stream, &resp.typ, &resp.resp)?;
     }
