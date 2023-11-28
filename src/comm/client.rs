@@ -59,7 +59,7 @@ impl Client {
             _ => None
         }
     }
-    pub fn add_order(&self, user: &User, price: i8, qty: u64, book_id: u16) -> Option<()> {
+    pub fn add_order(&self, user: &User, price: i8, qty: u64, book_id: u16) -> Option<AddResponse> {
         let mut repo = self.inner.repo.lock().unwrap();
         let mut stream = self.inner.stream.lock().unwrap();
 
@@ -68,6 +68,8 @@ impl Client {
         }
 
         let ret = stream.add_order(qty, price, book_id).unwrap();
+
+        let mut add_response = None;
 
         for result in ret.iter() {
             unsafe {
@@ -79,13 +81,14 @@ impl Client {
                     OBResponseWrapper { resp: OBResponse { add: resp }, typ: OBRespType::ADD } => {
                         repo.add_order_to_user(resp.oid, book_id, price, resp.qty, user.id).unwrap();
                         self.inner.sender.send("add order".to_string()).unwrap();
+                        add_response = Some(resp.clone());
                     },
                     _ => unreachable!()
                 }
             }
         }
 
-        Some(())
+        add_response
     }
     pub fn reduce_order(&self, user: &User, oid: usize, qty: u64, book_id: u16) -> Option<()> {
         let mut repo = self.inner.repo.lock().unwrap();
@@ -116,5 +119,14 @@ impl Client {
     pub fn get_ob_levels(&self) -> std::collections::BTreeMap<i8, u64> {
         let stream = self.inner.stream.lock().unwrap();
         stream.get_price_levels()
+    }
+
+    pub fn get_orders(&self, user: &User) -> Option<Vec<UserOrder>> {
+        let mut repo = self.inner.repo.lock().unwrap();
+
+        match repo.get_orders(user.id) {
+            Ok(orders) => Some(orders),
+            _ => None
+        }
     }
 }

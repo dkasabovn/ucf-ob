@@ -49,6 +49,10 @@ async fn main() -> std::io::Result<()> {
             .service(result)
             .service(users::get_user)
             .service(users::create_user)
+            .service(order::get_orders)
+            .service(order::create_order)
+            .service(order::delete_order)
+            .service(order::reduce_order)
             .route("/ws/", web::get().to(ws::websocket_route))
     })
     .bind(("127.0.0.1", 8080))?

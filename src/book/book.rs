@@ -146,10 +146,11 @@ impl Orderbook {
             level.tail = order_id;
         }
     }
-    fn reduce_order(self: &mut Self, order_id: usize, qty: u64) -> PriceLevelResponse {
+    fn reduce_order(self: &mut Self, order_id: usize, mut qty: u64) -> PriceLevelResponse {
         let mut order_arena = self.order_arena.borrow_mut();
         let order = order_arena.get(order_id);
-        debug_assert!(order.qty >= qty);
+        // debug_assert!(order.qty >= qty);
+        qty = cmp::min(order.qty, qty); // prevents underflow errors in case of user tardation
         let level = &mut self.level_arena[order.level_id];
         level.qty -= qty;
         order.qty -= qty;

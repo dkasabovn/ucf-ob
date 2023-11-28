@@ -1,3 +1,4 @@
+use serde::Serialize;
 use derive_more::Constructor;
 use std::io::prelude::*;
 use std::io::Result;
@@ -174,7 +175,7 @@ pub union OBResponse {
     pub end: DelimResponse,
 }
 
-#[derive(Debug, Constructor, Clone, Copy)]
+#[derive(Debug, Constructor, Clone, Copy,Serialize)]
 pub struct AddResponse {
     pub oid: usize,
     pub qty: u64,
