@@ -69,6 +69,7 @@ impl InnerRepo {
                 id INTEGER PRIMARY KEY,
                 user_no_fk INT NOT NULL REFERENCES users(id),
                 user_yes_fk INT NOT NULL REFERENCES users(id),
+                book_id INT NOT NULL,
                 qty INT NOT NULL
              );
              COMMIT;",
@@ -143,7 +144,7 @@ impl InnerRepo {
     // 2.) INSERT INTO contracts (user_no_fk, user_yes_fk, qty) VALUES (?1, ?2, ?3); -- qty given
     //   by OBResponse.execute yes and no you determine
     // 3.) UPDATE orders SET qty = qty - ?2 WHERE id = ?1; -- ?1 is oid
-    pub fn create_contract(&mut self, user_uid: i32, other_oid: usize, qty: u64) -> Result<()> {
+    pub fn create_contract(&mut self, user_uid: i32, other_oid: usize, qty: u64, book_id: u16) -> Result<()> {
         let other_order: Result<UserOrder> = self.con.query_row_and_then(
             "SELECT * FROM user_orders WHERE id = ?1",
             params![&(other_oid as i32)],
@@ -163,8 +164,8 @@ impl InnerRepo {
         let contract_no = if other_order.price < 0 { user_uid } else { other_order.user_fk };
         
         self.con.execute(
-            "INSERT INTO contracts (user_no_fk, user_yes_fk, qty) VALUES (?1, ?2, ?3)",
-            (&contract_no, &contract_yes, &qty),
+            "INSERT INTO contracts (user_no_fk, user_yes_fk, qty, book_id) VALUES (?1, ?2, ?3, ?4)",
+            (&(contract_no as i32), &(contract_yes as i32), &(qty as i32), &(book_id as i32)),
         )?;
 
         self.con.execute(
@@ -178,17 +179,19 @@ impl InnerRepo {
     // SELECT * FROM contracts;
     // -- use for paying out when outcome is known; make api request for setting outcome
     pub fn get_contracts(&mut self) -> Result<Vec<Contract>> {
-        let mut stmt = self.con.prepare("SELECT user_yes_fk, user_no_fk, qty FROM contracts")?;
+        let mut stmt = self.con.prepare("SELECT user_yes_fk, user_no_fk, qty, book_id FROM contracts")?;
         let rows = stmt.query_map([], |row| Ok(Contract{
             yes_holder: row.get(0)?,
             no_holder: row.get(1)?,
             qty: row.get(2)?,
+            book_id: row.get(3)?,
         }))?;
 
         let ret: Vec<Contract> = rows.into_iter().map(|x| x.unwrap_or(Contract{
             yes_holder: -1,
             no_holder: -1,
-            qty: -1
+            qty: -1,
+            book_id: -1,
         })).collect();
         
         Ok(ret)
@@ -256,6 +259,25 @@ impl InnerRepo {
             user_fk: -1,
         })).collect();
 
+        Ok(ret)
+    }
+
+    pub fn get_contracts_for_user(&mut self, uid: i32) -> Result<Vec<Contract>> {
+        let mut stmt = self.con.prepare("SELECT user_yes_fk, user_no_fk, qty, book_id FROM contracts WHERE user_yes_fk = ?1 OR user_no_fk = ?1")?;
+        let rows = stmt.query_map([&uid], |row| Ok(Contract{
+            yes_holder: row.get(0)?,
+            no_holder: row.get(1)?,
+            qty: row.get(2)?,
+            book_id: row.get(3)?,
+        }))?;
+
+        let ret: Vec<Contract> = rows.into_iter().map(|x| x.unwrap_or(Contract{
+            yes_holder: -1,
+            no_holder: -1,
+            qty: -1,
+            book_id: -1,
+        })).collect();
+        
         Ok(ret)
     }
 }

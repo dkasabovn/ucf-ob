@@ -3,6 +3,7 @@ use crate::comm::repo::InnerRepo;
 use crate::comm::domain::*;
 use crate::comm::urcp::*;
 
+use std::collections::BTreeMap;
 use std::sync::Mutex;
 use std::sync::Arc;
 use std::io;
@@ -93,7 +94,7 @@ impl Client {
             unsafe {
                 match result {
                     OBResponseWrapper { resp: OBResponse { execute: resp }, typ: OBRespType::EXECUTE } => {
-                        repo.create_contract(user.id, resp.executed_oid, resp.qty).unwrap();
+                        repo.create_contract(user.id, resp.executed_oid, resp.qty, book_id).unwrap();
                         let execute_packet = ApiExecuteResponse {
                             typ: String::from("execute"),
                             data: ApiExecuteInner {
@@ -156,6 +157,8 @@ impl Client {
         let mut repo = self.inner.repo.lock().unwrap();
         let mut stream = self.inner.stream.lock().unwrap();
 
+        let mut map: BTreeMap<i32, i32> = BTreeMap::new();
+
         let orders = repo.get_all_orders();
 
         // todo(nw): just put this in a hashmap then modify_user_balance at the end
@@ -167,16 +170,64 @@ impl Client {
                     100 - order.price
                 };
                 let return_balance = rp * order.qty;
-                if let Err(e) = repo.modify_user_balance(order.user_fk, return_balance) {
-                    println!("SQLE: {}", e);
+                match map.get_mut(&order.user_fk) {
+                    Some(v) => {
+                        *v += return_balance;
+                    },
+                    None => {
+                        map.insert(order.id, return_balance);
+                    }
                 }
             }
         }
 
+        if let Ok(contracts) = repo.get_contracts() {
+            for contract in contracts.iter() {
+                if contract.book_id == 0 {
+                    let add_user_id = if right {
+                        contract.yes_holder
+                    } else {
+                        contract.no_holder
+                    };
+
+                    match map.get_mut(&add_user_id) {
+                        Some(v) => {
+                            *v += contract.qty;
+                        },
+                        None => {
+                            map.insert(add_user_id, contract.qty);
+                        }
+                    }
+                }
+            }
+        }
+
+        for (uid, bonus) in map.iter() {
+            let _ = repo.modify_user_balance(*uid, *bonus);
+        }
+
+        if let Ok(json) = to_string(&ApiResultResponse{
+            top,
+            right
+        }) {
+            match self.inner.sender.send(json) {
+                Err(e) => println!("ERROR BCAST: {}", e),
+                _ => (),
+            }
+        }
 
         // todo(nw) after done call stream.flush
+        let _ = stream.flush_book(0);
+        let _ = stream.flush_book(1);
 
         None 
+    }
+    pub fn get_contracts_for_user(&self, uid: i32) -> Option<Vec<Contract>> {
+        let mut repo = self.inner.repo.lock().unwrap();
+        match repo.get_contracts_for_user(uid) {
+            Err(_) => None,
+            Ok(data) => Some(data),
+        }
     }
     pub fn get_ob_levels(&self) -> Vec<std::collections::BTreeMap<i8, u64>> {
         let stream = self.inner.stream.lock().unwrap();

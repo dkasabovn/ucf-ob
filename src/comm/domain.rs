@@ -9,6 +9,7 @@ pub struct User {
 
 #[derive(Serialize)]
 pub struct Contract {
+    pub book_id: i32,
     pub yes_holder: i32,
     pub no_holder: i32,
     pub qty: i32,
@@ -50,4 +51,10 @@ pub struct ApiExecuteResponse {
 pub struct ApiExecuteInner {
     pub oid: usize,
     pub qty: u64
+}
+
+#[derive(Serialize)]
+pub struct ApiResultResponse {
+    pub top: bool,
+    pub right: bool,
 }
