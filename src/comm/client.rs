@@ -65,7 +65,10 @@ impl Client {
         let mut stream = self.inner.stream.lock().unwrap();
     
         let math_price: u64 = price.abs() as u64;
-        let req_balance: i32 = (qty * math_price).try_into().expect("failed req balance math");
+        let req_balance: i32 = match (qty * math_price).try_into() {
+            Ok(bal) => bal,
+            Err(_) => return None
+        };
 
         if user.balance < req_balance  {
             return None;
@@ -135,7 +138,7 @@ impl Client {
             _ => None
         }
     }
-    pub fn cancel_order(&self, user: &User, oid: usize, book_id: u16) -> Option<()> {
+    pub fn cancel_order(&self, _user: &User, oid: usize, book_id: u16) -> Option<()> {
         let mut repo = self.inner.repo.lock().unwrap();
         let mut stream = self.inner.stream.lock().unwrap();
 

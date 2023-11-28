@@ -4,8 +4,6 @@ use fast_book::comm::urcp::*;
 
 use std::io::Result;
 use std::os::unix::net::UnixStream;
-use std::io::prelude::*;
-use std::mem;
 
 const STREAM_ADDR: &'static str = "/tmp/fish.socket";
 

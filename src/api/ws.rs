@@ -1,11 +1,10 @@
-use actix::{Actor, StreamHandler, AsyncContext, Context, spawn};
-use actix_web::{web, App, HttpResponse, HttpServer, HttpRequest, Error};
+use actix::{Actor, StreamHandler, AsyncContext, spawn};
+use actix_web::{web, HttpResponse, HttpRequest, Error};
 use actix_web_actors::ws;
-use tokio::time::{self, Duration};
+use tokio::time::{Duration};
 use tokio::sync::broadcast;
 use tokio_stream::wrappers::BroadcastStream;
 use serde_json::to_string;
-use actix::prelude::*;
 use futures::StreamExt;
 
 use fast_book::comm::domain::*;

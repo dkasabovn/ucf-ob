@@ -13,7 +13,6 @@ impl InnerStream {
     pub fn new(addr: &'static str) -> Result<Self> {
         let stream = UnixStream::connect(addr)?;
         stream.set_nonblocking(false)?;
-        // TODO: look at these maybe set write_timeout and read_timeout
         stream.set_read_timeout(None)?;
         stream.set_write_timeout(None)?;
         Ok(Self{
@@ -50,6 +49,12 @@ impl InnerStream {
         unsafe {
             self.handle_price_level(price_level.resp.price, ob_id);
         }
+        Ok(())
+    }
+    pub fn flush_book(&mut self, ob_id: u16) -> Result<()> {
+        write_request(&mut self.stream, &OBReqType::FLUSH, &OBRequest { flush: FlushRequest::new(ob_id) })?;
+        let delim_resp = read_response(&mut self.stream)?; 
+        assert!(matches!(delim_resp.typ, OBRespType::DELIM));
         Ok(())
     }
     pub fn handle_price_level(&mut self, plu: PriceLevelResponse, ob_id: u16) {

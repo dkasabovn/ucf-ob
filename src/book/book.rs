@@ -22,12 +22,6 @@ impl OrderChain {
             prev: usize::MAX,
         }
     }
-    fn next(self: &OrderChain) -> usize {
-        self.next
-    }
-    fn set_next(self: &mut OrderChain, elem: usize) {
-        self.next = elem;
-    }
 }
 
 pub struct Level {
@@ -76,6 +70,8 @@ impl Orderbook {
     pub fn clear(&mut self) {
         self.sorted_yes.clear();
         self.sorted_no.clear();
+        self.order_arena.borrow_mut().clear();
+        self.level_arena.clear();
     }
 
     pub fn with_capacities(

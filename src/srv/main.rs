@@ -3,9 +3,7 @@ extern crate fast_book;
 use fast_book::comm::urcp::*;
 use fast_book::comm::manager::*;
 
-use std::io::prelude::*;
 use std::io::Result;
-use std::mem;
 use std::os::unix::net::*;
 
 const ORDER_SIZE: usize = 1000000;
@@ -14,20 +12,6 @@ const BOOKS: u16 = 1;
 
 const STREAM_ADDR: &'static str = "/tmp/fish.socket";
 
-unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
-    ::core::slice::from_raw_parts(
-        (p as *const T) as *const u8,
-        ::core::mem::size_of::<T>(),
-    )
-}
-
-unsafe fn u8_slice_to_struct<T: Copy>(s: &[u8]) -> T {
-    assert_eq!(s.len(), mem::size_of::<T>());
-
-    // Create an unaligned reference to the slice and read it as a T
-    let ptr = s.as_ptr() as *const T;
-    ptr.read_unaligned()
-}
 
 fn main() -> Result<()> {
     let mut manager = Manager::new(ORDER_SIZE, LEVEL_SIZE, BOOKS);
@@ -59,18 +43,10 @@ fn main() -> Result<()> {
                     let price_level_response = manager[req.ob_id as usize].reduce(req.oid, req.qty);
                     write_response(&mut listener, &OBRespType::PRICE, &OBResponse { price: price_level_response })?;
                 },
-                OBRequestWrapper { req: OBRequest { flush: _req }, typ: OBReqType::FLUSH } => {
+                OBRequestWrapper { req: OBRequest { flush: req }, typ: OBReqType::FLUSH } => {
+                    manager[req.ob_id as usize].clear();
                     write_response(&mut listener, &OBRespType::DELIM, &OBResponse { end: DelimResponse{}})?;
                 },
-                OBRequestWrapper { req: OBRequest { start: _req }, typ: OBReqType::START } => {
-                    write_response(&mut listener, &OBRespType::DELIM, &OBResponse { end: DelimResponse{}})?;
-                },
-                OBRequestWrapper {req: OBRequest {level_view: req}, typ: OBReqType::LEVELVIEW} => {
-                    let view_response = manager[req.ob_id as usize].get_level_view();
-                    write_response(&mut listener, &OBRespType::LEVELVIEW, &OBResponse { view: PriceViewResponse {
-                        prices: view_response
-                    }})?;
-                }
                 _ => break
             };
         };

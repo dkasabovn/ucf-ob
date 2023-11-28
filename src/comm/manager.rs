@@ -1,4 +1,4 @@
-use crate::book::book::{Orderbook, OrderChain};
+use crate::book::book::{Orderbook};
 use crate::book::bump::BumpAllocator;
 use std::cell::RefCell;
 use std::rc::Rc;

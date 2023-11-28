@@ -8,7 +8,7 @@ use serde::{Serialize,Deserialize};
 use firebase_auth::FirebaseUser;
 
 #[derive(Serialize,Deserialize)]
-struct CreateOrder {
+pub struct CreateOrder {
     qty: u64,
     price: i8,
     market: u16,
@@ -69,7 +69,7 @@ pub async fn delete_order(user: FirebaseUser, client: Data<Client>, payload: web
 }
 
 #[derive(Serialize,Deserialize)]
-struct ModifyOrder {
+pub struct ModifyOrder {
     qty: u64,
     oid: usize,
     market: u16,
