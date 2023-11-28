@@ -230,7 +230,7 @@ impl Orderbook {
 
         while let Some((lh, lp)) = self.best_order(price) {
             let head_qty = self.order_arena.borrow_mut().get(lh).qty;
-            if lp.abs() <= price.abs() {
+            if 100 - lp.abs() <= price.abs() {
                 // TODO: fix this line and we're gtg i think
                 let transaction_qty = cmp::min(qty, head_qty);
                 let price_delta = self.reduce_order(lh, transaction_qty);
@@ -255,7 +255,7 @@ impl Orderbook {
             let oid = self.add(qty, price);
             actions.push(OBResponseWrapper {
                 resp: OBResponse {
-                    add: AddResponse::new(oid),
+                    add: AddResponse::new(oid, qty),
                 },
                 typ: OBRespType::ADD,
             });

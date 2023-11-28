@@ -134,7 +134,36 @@ impl InnerRepo {
     // 2.) INSERT INTO contracts (user_no_fk, user_yes_fk, qty) VALUES (?1, ?2, ?3); -- qty given
     //   by OBResponse.execute yes and no you determine
     // 3.) UPDATE orders SET qty = qty - ?2 WHERE id = ?1; -- ?1 is oid
-    pub fn create_contract(&mut self) {
+    pub fn create_contract(&mut self, user_uid: i32, other_oid: usize, qty: u64) -> Result<()> {
+        let other_order: Result<UserOrder> = self.con.query_row_and_then(
+            "SELECT * FROM user_orders WHERE id = ?1",
+            params![&(other_oid as i32)],
+            |row| {
+                Ok(UserOrder{
+                    id: row.get(0)?,
+                    book_id: row.get(1)?,
+                    price: row.get(2)?,
+                    qty: row.get(3)?,
+                    user_fk: row.get(4)?,
+                })
+            },
+        );
+        let other_order = other_order?;
+
+        let contract_yes = if other_order.price < 0 { other_order.user_fk } else { user_uid };
+        let contract_no = if other_order.price < 0 { user_uid } else { other_order.user_fk };
+        
+        self.con.execute(
+            "INSERT INTO contracts (user_no_fk, user_yes_fk, qty) VALUES (?1, ?2, ?3)",
+            (&contract_no, &contract_yes, &qty),
+        )?;
+
+        self.con.execute(
+            "UPDATE user_orders SET qty = qty - ?2 WHERE id = ?1",
+            (&(other_oid as i32), &qty),
+        )?;
+
+        Ok(())
     }
     // get a list of contracts and do payouts
     // SELECT * FROM contracts;

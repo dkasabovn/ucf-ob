@@ -1,7 +1,9 @@
 use crate::comm::stream::InnerStream;
 use crate::comm::repo::InnerRepo;
 use crate::comm::domain::*;
+use crate::comm::urcp::*;
 
+use std::sync::MutexGuard;
 use std::sync::Mutex;
 use std::sync::Arc;
 use std::io;
@@ -11,10 +13,13 @@ pub struct InnerClient {
     repo: Mutex<InnerRepo>,
 }
 
+#[derive(Clone)]
 pub struct Client {
     inner: Arc<InnerClient>,
 }
 
+
+// !!! Lock repo first then stream
 impl Client {
     pub fn new(addr: &'static str) -> io::Result<Self> {
         let stream = InnerStream::new(addr)?;
@@ -42,5 +47,34 @@ impl Client {
             Ok(_) => Some(()),
             _ => None
         }
+    }
+    pub fn add_order(&self, user: &User, price: i8, qty: u64, book_id: u16) -> Option<()> {
+        let mut repo = self.inner.repo.lock().unwrap();
+        let mut stream = self.inner.stream.lock().unwrap();
+
+        if user.balance < qty as i32 {
+            return None;
+        }
+
+        let ret = stream.add_order(qty, price, book_id).unwrap();
+
+        for result in ret.iter() {
+            unsafe {
+                match result {
+                    OBResponseWrapper { resp: OBResponse { execute: resp }, typ: OBRespType::EXECUTE } => {
+                        let x_resp = repo.create_contract(user.id, resp.executed_oid, resp.qty);
+                        // TODO(nw): blocking send that order was executed to that user id to a tokio
+                        // broadcast
+                    },
+                    OBResponseWrapper { resp: OBResponse { add: resp }, typ: OBRespType::ADD } => {
+                        let add_resp = repo.add_order_to_user(resp.oid, book_id, price, resp.qty, user.id);
+                        // TODO(nw): same shit
+                    },
+                    _ => unreachable!()
+                }
+            }
+        }
+
+        Some(())
     }
 }

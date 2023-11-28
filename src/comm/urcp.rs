@@ -177,6 +177,7 @@ pub union OBResponse {
 #[derive(Debug, Constructor, Clone, Copy)]
 pub struct AddResponse {
     pub oid: usize,
+    pub qty: u64,
 }
 
 #[derive(Debug, Constructor, Clone, Copy)]
