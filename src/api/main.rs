@@ -39,6 +39,8 @@ async fn main() -> std::io::Result<()> {
             .service(hello)
             .service(echo)
             .service(result)
+            .service(users::get_user)
+            .service(users::create_user)
             .route("/ws/", web::get().to(ws::websocket_route))
     })
     .bind(("127.0.0.1", 8080))?
