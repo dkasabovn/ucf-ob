@@ -78,6 +78,7 @@ impl Client {
         let mut add_response = None;
 
         for result in ret.iter() {
+            println!("{:?}", result);
             unsafe {
                 match result {
                     OBResponseWrapper { resp: OBResponse { execute: resp }, typ: OBRespType::EXECUTE } => {

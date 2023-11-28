@@ -77,9 +77,13 @@ impl InnerRepo {
             Err(e) => io::Result::Err(io::Error::new(io::ErrorKind::Other, e)),
         }?;
 
-        Ok(Self{
+        let mut repo = Self {
             con
-        })
+        };
+
+        repo.drop_orders().unwrap();
+
+        Ok(repo)
     }
     // create user with default balance
     // INSERT INTO users (sub, balance) VALUES (?1, ?2);
