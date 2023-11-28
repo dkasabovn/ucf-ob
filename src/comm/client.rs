@@ -1,5 +1,6 @@
 use crate::comm::stream::InnerStream;
 use crate::comm::repo::InnerRepo;
+use crate::comm::domain::*;
 
 use std::sync::Mutex;
 use std::sync::Arc;
@@ -27,5 +28,19 @@ impl Client {
         Ok(Client {
             inner: Arc::new(inner_client),
         })
+    }
+    pub fn get_user(&self, sub: String) -> Option<User> {
+        let mut repo = self.inner.repo.lock().unwrap();
+        match repo.get_user(sub) {
+            Ok(usr) => Some(usr),
+            _ => None
+        }
+    }
+    pub fn create_user(&self, sub: String) -> Option<()> {
+        let mut repo = self.inner.repo.lock().unwrap();
+        match repo.create_user(sub) {
+            Ok(_) => Some(()),
+            _ => None
+        }
     }
 }
