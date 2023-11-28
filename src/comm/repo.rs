@@ -195,4 +195,12 @@ impl InnerRepo {
         )?;
         Ok(())
     }
+
+    pub fn delete_order(&mut self, oid: usize) -> Result<()> {
+        self.con.execute(
+            "DELETE FROM user_orders WHERE id = ?1",
+            params![&(oid as i32)],
+        )?;
+        Ok(())
+    }
 }

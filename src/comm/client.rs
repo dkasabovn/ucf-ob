@@ -3,31 +3,42 @@ use crate::comm::repo::InnerRepo;
 use crate::comm::domain::*;
 use crate::comm::urcp::*;
 
-use std::sync::MutexGuard;
 use std::sync::Mutex;
 use std::sync::Arc;
 use std::io;
 
+use tokio::sync::broadcast::Sender;
+
 pub struct InnerClient {
     stream: Mutex<InnerStream>,
     repo: Mutex<InnerRepo>,
+    sender: Sender<String>,
 }
 
-#[derive(Clone)]
 pub struct Client {
     inner: Arc<InnerClient>,
 }
 
 
+impl Clone for Client {
+    fn clone(&self) -> Self {
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
+    }
+}
+
+
 // !!! Lock repo first then stream
 impl Client {
-    pub fn new(addr: &'static str) -> io::Result<Self> {
+    pub fn new(addr: &'static str, sender: Sender<String>) -> io::Result<Self> {
         let stream = InnerStream::new(addr)?;
         let repo =  InnerRepo::new()?;
 
         let inner_client = InnerClient{
             stream: Mutex::new(stream),
             repo: Mutex::new(repo),
+            sender: sender,
         };
 
         Ok(Client {
@@ -62,13 +73,12 @@ impl Client {
             unsafe {
                 match result {
                     OBResponseWrapper { resp: OBResponse { execute: resp }, typ: OBRespType::EXECUTE } => {
-                        let _ = repo.create_contract(user.id, resp.executed_oid, resp.qty);
-                        // TODO(nw): blocking send that order was executed to that user id to a tokio
-                        // broadcast
+                        repo.create_contract(user.id, resp.executed_oid, resp.qty).unwrap();
+                        self.inner.sender.send("execute order".to_string()).unwrap();
                     },
                     OBResponseWrapper { resp: OBResponse { add: resp }, typ: OBRespType::ADD } => {
-                        let _ = repo.add_order_to_user(resp.oid, book_id, price, resp.qty, user.id);
-                        // TODO(nw): same shit
+                        repo.add_order_to_user(resp.oid, book_id, price, resp.qty, user.id).unwrap();
+                        self.inner.sender.send("add order".to_string()).unwrap();
                     },
                     _ => unreachable!()
                 }
@@ -81,9 +91,13 @@ impl Client {
         let mut repo = self.inner.repo.lock().unwrap();
         let mut stream = self.inner.stream.lock().unwrap();
 
-        // TODO(dk): reduce order from db
+        // check that we can actually perform this operation
+
         match stream.reduce_order(oid, qty, book_id) {
-            Ok(_) => Some(()),
+            Ok(_) => {
+                repo.modify_user_balance(user.id, -(qty as i32)).unwrap();
+                Some(())
+            },
             _ => None
         }
     }
@@ -91,10 +105,16 @@ impl Client {
         let mut repo = self.inner.repo.lock().unwrap();
         let mut stream = self.inner.stream.lock().unwrap();
 
-        // TODO(dk): delete order from db
         match stream.cancel_order(oid, book_id) {
-            Ok(_) => Some(()),
+            Ok(_) => {
+                repo.delete_order(oid).unwrap();
+                Some(())
+            },
             _ => None
         }
+    }
+    pub fn get_ob_levels(&self) -> std::collections::BTreeMap<i8, u64> {
+        let stream = self.inner.stream.lock().unwrap();
+        stream.get_price_levels()
     }
 }
