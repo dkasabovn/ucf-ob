@@ -158,6 +158,7 @@ impl Client {
 
         let orders = repo.get_all_orders();
 
+        // todo(nw): just put this in a hashmap then modify_user_balance at the end
         if let Ok(orders) = orders {
             for order in orders.iter() {
                 let rp = if order.price < 0 {
@@ -171,6 +172,9 @@ impl Client {
                 }
             }
         }
+
+
+        // todo(nw) after done call stream.flush
 
         None 
     }
