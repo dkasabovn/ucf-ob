@@ -63,7 +63,7 @@ impl Client {
         let mut repo = self.inner.repo.lock().unwrap();
         let mut stream = self.inner.stream.lock().unwrap();
 
-        if user.balance < (qty * (price as u64)) as i32 {
+        if user.balance < (qty * (price.abs() as u64)) as i32 {
             return None;
         }
 
