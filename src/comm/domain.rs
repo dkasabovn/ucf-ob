@@ -15,7 +15,7 @@ pub struct Contract {
     pub qty: i32,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize,Debug)]
 pub struct UserOrder {
     pub id: i32,
     pub book_id: i32,
