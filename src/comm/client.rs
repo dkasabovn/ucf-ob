@@ -203,6 +203,7 @@ impl Client {
         }
 
         for (uid, bonus) in map.iter() {
+            println!("USER: {} BONUS: {}", uid, bonus);
             let _ = repo.modify_user_balance(*uid, *bonus);
         }
 
