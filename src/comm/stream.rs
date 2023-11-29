@@ -52,6 +52,8 @@ impl InnerStream {
         Ok(())
     }
     pub fn flush_book(&mut self, ob_id: u16) -> Result<()> {
+        self.prices[0].clear();
+        self.prices[1].clear();
         write_request(&mut self.stream, &OBReqType::FLUSH, &OBRequest { flush: FlushRequest::new(ob_id) })?;
         let delim_resp = read_response(&mut self.stream)?; 
         assert!(matches!(delim_resp.typ, OBRespType::DELIM));
