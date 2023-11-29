@@ -216,6 +216,8 @@ impl Client {
             }
         }
 
+        let _ = repo.drop_orders();
+
         // todo(nw) after done call stream.flush
         let _ = stream.flush_book(0);
         let _ = stream.flush_book(1);
