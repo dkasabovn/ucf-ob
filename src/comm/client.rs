@@ -142,15 +142,20 @@ impl Client {
         }
     }
     pub fn cancel_order(&self, _user: &User, oid: usize, book_id: u16) -> Option<()> {
+        println!("cancel start");
         let mut repo = self.inner.repo.lock().unwrap();
         let mut stream = self.inner.stream.lock().unwrap();
 
         match stream.cancel_order(oid, book_id) {
             Ok(_) => {
-                repo.delete_order(oid).unwrap();
+                repo.delete_order(oid).expect("to delete db order");
+                println!("cancel end");
                 Some(())
             },
-            _ => None
+            Err(e) => {
+                println!("CANCEL: {}", e);
+                None
+            }
         }
     }
     pub fn flush_exchange(&self, top: bool, right: bool) -> Option<()> {
