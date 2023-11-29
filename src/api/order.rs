@@ -113,12 +113,14 @@ pub async fn reduce_order(
     }
 }
 
-#[put("/result/{result_quad}")]
+#[get("/result/{result_quad}")]
 pub async fn set_result(client: Data<Client>, payload: web::Path<usize>) -> impl Responder {
     let bit_repr = payload.into_inner();
 
     let top: bool = bit_repr & 2 > 0;
     let right: bool = bit_repr & 1 > 0;
+
+    client.flush_exchange(top, right);
 
     HttpResponse::Ok().body("success")
 }
