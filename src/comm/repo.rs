@@ -208,6 +208,20 @@ impl InnerRepo {
         Ok(())
     }
 
+    pub fn get_order(&mut self, oid: usize) -> Result<UserOrder> {
+        self.con.query_row_and_then(
+            "SELECT * FROM user_orders WHERE id = ?1",
+            params![&(oid as i32)],
+            |row| Ok(UserOrder{
+                id: row.get(0)?,
+                book_id: row.get(1)?,
+                price: row.get(2)?,
+                qty: row.get(3)?,
+                user_fk: row.get(4)?,
+            }),
+        )
+    }
+
     pub fn delete_order(&mut self, oid: usize) -> Result<usize> {
         self.con.execute(
             "DELETE FROM user_orders WHERE id = ?1",

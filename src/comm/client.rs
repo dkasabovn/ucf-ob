@@ -141,21 +141,30 @@ impl Client {
             _ => None
         }
     }
-    pub fn cancel_order(&self, _user: &User, oid: usize, book_id: u16) -> Option<()> {
-        println!("cancel start");
+    pub fn cancel_order(&self, user: &User, oid: usize, book_id: u16) -> Option<()> {
         let mut repo = self.inner.repo.lock().unwrap();
         let mut stream = self.inner.stream.lock().unwrap();
 
-        match repo.delete_order(oid) {
-            Ok(cnt) => if cnt <= 0 {
-                return None
-            },
+        let order_adj_qty = match repo.get_order(oid) {
+            Ok(order) => {
+                let rp = if order.price < 0 {
+                    -order.price
+                } else {
+                    100 - order.price
+                };
+                rp * order.qty
+            }
+            _ => return None
+        };
+
+        match repo.modify_user_balance(user.id, order_adj_qty) {
+            Err(_) => return None,
             _ => ()
         };
 
         match stream.cancel_order(oid, book_id) {
             Ok(_) => {
-                println!("cancel end");
+                let _ = repo.delete_order(oid);
                 Some(())
             },
             Err(e) => {
