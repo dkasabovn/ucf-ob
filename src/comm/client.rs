@@ -192,10 +192,10 @@ impl Client {
 
                     match map.get_mut(&add_user_id) {
                         Some(v) => {
-                            *v += contract.qty;
+                            *v += contract.qty * 100;
                         },
                         None => {
-                            map.insert(add_user_id, contract.qty);
+                            map.insert(add_user_id, contract.qty * 100);
                         }
                     }
                 }
