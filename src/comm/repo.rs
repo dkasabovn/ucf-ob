@@ -280,4 +280,16 @@ impl InnerRepo {
         
         Ok(ret)
     }
+    pub fn get_order_leaderboard(&mut self) -> Result<Vec<User>> {
+        let mut stmt = self.con.prepare("SELECT id, sub, balance FROM users ORDER BY balance DESC")?;
+        let rows = stmt.query_map([], |row| Ok(User {
+            id: row.get(0)?,
+            sub: row.get(1)?,
+            balance: row.get(2)?,
+        }))?;
+
+        let ret: Vec<User> = rows.into_iter().map(|x| x.unwrap()).collect();
+
+        Ok(ret)
+    }
 }

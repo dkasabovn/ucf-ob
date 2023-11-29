@@ -243,4 +243,11 @@ impl Client {
             _ => None
         }
     }
+    pub fn get_leaderboard(&self) -> Option<Vec<User>> {
+        let mut repo = self.inner.repo.lock().unwrap();
+        match repo.get_order_leaderboard() {
+            Ok(data) => Some(data),
+            _ => None
+        }
+    }
 }

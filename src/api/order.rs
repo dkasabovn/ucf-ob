@@ -124,3 +124,8 @@ pub async fn set_result(client: Data<Client>, payload: web::Path<usize>) -> impl
 
     HttpResponse::Ok().body("success")
 }
+
+#[get("/leaderboard")]
+pub async fn get_leaderboard(client: Data<Client>) -> impl Responder {
+    HttpResponse::Ok().json(client.get_leaderboard().unwrap())
+}
