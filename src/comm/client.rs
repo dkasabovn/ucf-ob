@@ -175,7 +175,7 @@ impl Client {
                         *v += return_balance;
                     },
                     None => {
-                        map.insert(order.id, return_balance);
+                        map.insert(order.user_fk, return_balance);
                     }
                 }
             }
