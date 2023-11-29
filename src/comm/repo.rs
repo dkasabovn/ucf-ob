@@ -78,10 +78,10 @@ impl InnerRepo {
             Err(e) => io::Result::Err(io::Error::new(io::ErrorKind::Other, e)),
         }?;
 
-        //let _ = con.execute(
-        //    "UPDATE users SET balance = ?1",
-        //    params![&USER_BALANCE_DEFAULT],
-        //);
+        let _ = con.execute(
+            "UPDATE users SET balance = ?1",
+            params![&USER_BALANCE_DEFAULT],
+        );        
 
         let mut repo = Self {
             con
