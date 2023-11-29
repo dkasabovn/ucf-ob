@@ -208,12 +208,11 @@ impl InnerRepo {
         Ok(())
     }
 
-    pub fn delete_order(&mut self, oid: usize) -> Result<()> {
+    pub fn delete_order(&mut self, oid: usize) -> Result<usize> {
         self.con.execute(
             "DELETE FROM user_orders WHERE id = ?1",
             params![&(oid as i32)],
-        )?;
-        Ok(())
+        )
     }
 
     pub fn get_all_orders(&mut self) -> Result<Vec<UserOrder>> {

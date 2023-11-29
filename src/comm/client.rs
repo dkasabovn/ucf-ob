@@ -146,9 +146,15 @@ impl Client {
         let mut repo = self.inner.repo.lock().unwrap();
         let mut stream = self.inner.stream.lock().unwrap();
 
+        match repo.delete_order(oid) {
+            Ok(cnt) => if cnt <= 0 {
+                return None
+            },
+            _ => ()
+        };
+
         match stream.cancel_order(oid, book_id) {
             Ok(_) => {
-                repo.delete_order(oid).expect("to delete db order");
                 println!("cancel end");
                 Some(())
             },

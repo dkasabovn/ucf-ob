@@ -34,14 +34,12 @@ impl InnerStream {
         Ok(responses)
     }
     pub fn cancel_order(&mut self, oid: usize, ob_id: u16) -> Result<()> {
-        println!("start cancel");
         write_request(&mut self.stream, &OBReqType::CANCEL, &OBRequest{ cancel: CancelRequest::new(oid, ob_id) })?;
         let price_level = read_response(&mut self.stream)?;
         assert!(matches!(price_level.typ, OBRespType::PRICE));
         unsafe {
             self.handle_price_level(price_level.resp.price, ob_id);
         }
-        println!("end cancel");
         Ok(())
     }
     pub fn reduce_order(&mut self, oid: usize, qty: u64, ob_id: u16) -> Result<()> {
