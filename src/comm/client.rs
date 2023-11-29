@@ -163,7 +163,6 @@ impl Client {
 
         if let Ok(orders) = orders {
             for order in orders.iter() {
-                println!("{:?}", order);
                 let rp = if order.price < 0 {
                     -order.price
                 } else {
@@ -203,7 +202,6 @@ impl Client {
         }
 
         for (uid, bonus) in map.iter() {
-            println!("USER: {} BONUS: {}", uid, bonus);
             let _ = repo.modify_user_balance(*uid, *bonus);
         }
 
