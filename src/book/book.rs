@@ -26,7 +26,6 @@ impl OrderChain {
 
 pub struct Level {
     pub head: usize, // this pointer should be in the bump arena
-    pub tail: usize, // this pointer should be in the bump arena
     price: i8,
     qty: u64,
 }
@@ -35,7 +34,6 @@ impl Level {
     pub fn new(price: i8, qty: u64) -> Self {
         Level {
             head: usize::MAX,
-            tail: usize::MAX,
             price: price,
             qty: qty,
         }
@@ -135,7 +133,6 @@ impl Orderbook {
 
         if level.head == usize::MAX {
             level.head = order_id;
-            level.tail = order_id;
         } else {
             let mut cur_order_idx = level.head;
             let mut next_order_idx = order_arena.get(level.head).next;
@@ -145,7 +142,6 @@ impl Orderbook {
             }
             order_arena.get(cur_order_idx).next = order_id;
             order_arena.get(order_id).prev = cur_order_idx;
-            level.tail = order_id;
         }
     }
     fn reduce_order(self: &mut Self, order_id: usize, mut qty: u64) -> PriceLevelResponse {
@@ -191,6 +187,9 @@ impl Orderbook {
                 // prev is not null, we don't care if next is null
                 // unlink the order
                 order_arena.get(prev).next = next;
+                if next != usize::MAX {
+                    order_arena.get(next).prev = prev;
+                }
             }
         }
 
@@ -339,5 +338,119 @@ impl Orderbook {
                 cur_idx = order.next;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn arena() -> Rc<RefCell<BumpAllocator<OrderChain>>> {
+        Rc::new(RefCell::new(BumpAllocator::<OrderChain>::with_capacity(100)))
+    }
+
+    fn book() -> Orderbook {
+        let arena = arena();
+        Orderbook::with_capacities(arena, 200)
+    }
+
+    fn test_n_remove(n: usize, idx: usize) {
+        let mut book = book();
+        let mut order_vec: Vec<usize> = vec![];
+        for i in 0..n {
+            book.add((i + 1) as u64, 50);
+            order_vec.push(i);
+        }
+
+        // delete the targeted order
+        book.reduce_order(idx, (idx + 1) as u64);
+        order_vec.remove(idx);
+        book.print();
+
+        // get the best order
+        let best_order = book.best_order(-50);
+        match order_vec.len() {
+            0 => {
+                assert!(best_order.is_none());
+                assert!(book.level_arena.len() == 0);
+                return;
+            },
+            _ => assert!(best_order.is_some())
+        }
+
+        // get the best order id
+        let (best_oid, _) = best_order.unwrap();
+
+        // asser that the best order id is the one we put in first (after removal)
+        assert!(best_oid == *order_vec.first().unwrap());
+
+        let mut arena = book.order_arena.borrow_mut();
+        let mut oid_iter = best_oid;
+        let mut oid_prev = usize::MAX;
+        for e in order_vec.iter() {
+            let order = arena.get(oid_iter);
+            assert!(oid_iter == *e);
+            assert!(order.qty == (*e + 1) as u64);
+            assert!(order.prev == oid_prev, "{}.prev is incorrectly {} not {}", oid_iter, order.prev, oid_prev);
+
+            oid_prev = oid_iter;
+            oid_iter = order.next;
+        }
+
+        assert!(oid_iter == usize::MAX, "last order in chain should be nil");
+
+        let best_order = arena.get(best_oid);
+
+        let best_level = &book.level_arena[best_order.level_id];
+
+        assert!(best_level.head == *order_vec.first().unwrap());
+    }
+
+    #[test]
+    fn test_chaining() {
+        let mut book = book();
+        for i in 1..101 {
+            book.add(i, 99);
+        }
+
+        let mut arena = book.order_arena.borrow_mut();
+        let mut oid = 0;
+        // oid's should be 0 -> 99
+        for i in 0..100 {
+            let order = arena.get(oid);
+            assert!(order.qty == i + 1);
+            assert!(oid == i as usize);
+            oid = order.next;
+        }
+    }
+
+    #[test]
+    fn test_5_remove_start() {
+        test_n_remove(5, 0);
+    }
+
+    #[test]
+    fn test_5_remove_end() {
+        test_n_remove(5, 4);
+    }
+
+    #[test]
+    fn test_5_remove_middle() {
+        test_n_remove(5, 2);
+    }
+
+    #[test]
+    fn test_1_remove() {
+        test_n_remove(1, 0);
+    }
+
+    #[test]
+    fn test_2_remove_first() {
+        test_n_remove(2, 0);
+    }
+
+    #[test]
+    fn test_2_remove_last() {
+        test_n_remove(2, 1);
     }
 }
